@@ -12,6 +12,8 @@ const NAV = [
   { href: '/portal/products', label: 'Products' },
   { href: '/portal/plans', label: 'Plans' },
   { href: '/portal/staff', label: 'Staff' },
+  { href: '/portal/allocations', label: 'Allocations' },
+  { href: '/portal/reports', label: 'Reports' },
 ];
 
 export default function PortalLayout({

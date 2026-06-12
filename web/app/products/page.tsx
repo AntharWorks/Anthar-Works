@@ -28,7 +28,7 @@ export default function PublicCatalogPage() {
       </Link>
       <h1 className="mt-2 text-3xl font-bold">Water Purifiers</h1>
       <p className="mt-1 text-slate-600">
-        Browse purifiers across brands. Cart & Razorpay checkout arrive in Phase 3.
+        Browse purifiers across brands — instant checkout with Razorpay.
       </p>
 
       <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -49,12 +49,12 @@ export default function PublicCatalogPage() {
             <p className="mt-1 text-xl font-bold">
               ₹{Number(p.priceInr).toLocaleString('en-IN')}
             </p>
-            <button
-              disabled
-              className="mt-3 w-full cursor-not-allowed rounded-lg bg-slate-200 py-2 text-sm font-medium text-slate-500"
+            <Link
+              href={`/checkout/${p.id}`}
+              className="mt-3 block w-full rounded-lg bg-blue-600 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
             >
-              Buy — coming soon
-            </button>
+              Buy now
+            </Link>
           </div>
         ))}
         {products?.length === 0 && (
