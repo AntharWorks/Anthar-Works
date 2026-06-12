@@ -1,5 +1,9 @@
 # Deployment Guide
 
+> New to servers? There's a click-through walkthrough using Vercel + Railway in
+> [DEPLOYMENT_FOR_BEGINNERS.md](DEPLOYMENT_FOR_BEGINNERS.md). This page is the
+> technical reference for the self-hosted Docker Compose route.
+
 Target: a single VM (4 GB RAM is plenty for 2,500 users) with Docker + Docker Compose,
 fronted by a TLS reverse proxy (Caddy, nginx, or Cloudflare Tunnel).
 
