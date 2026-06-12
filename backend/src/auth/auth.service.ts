@@ -5,7 +5,9 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { NotificationChannel } from '@prisma/client';
 import { createHash, randomInt } from 'crypto';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -14,17 +16,14 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private hash(code: string): string {
     return createHash('sha256').update(code).digest('hex');
   }
 
-  /**
-   * Phase 0 stub: generates and stores the OTP. Dispatch via MSG91 (SMS) /
-   * WhatsApp template is wired in through the notifications queue in Phase 4.
-   * In development the OTP is returned in the response for testing.
-   */
+  // In development (no MSG91 keys) the OTP is also returned in the response.
   async requestOtp(phone: string) {
     const user = await this.prisma.user.findUnique({ where: { phone } });
     if (!user) {
@@ -39,6 +38,14 @@ export class AuthService {
         codeHash: this.hash(code),
         expiresAt: new Date(Date.now() + ttl * 1000),
       },
+    });
+
+    await this.notifications.send({
+      recipient: phone,
+      channel: NotificationChannel.SMS,
+      template: 'APP_LOGIN_OTP',
+      message: `${code} is your Anthar Works login OTP. Valid for ${Math.round(ttl / 60)} minutes.`,
+      payload: { kind: 'otp' },
     });
 
     const isDev = this.config.get('NODE_ENV') !== 'production';

@@ -36,6 +36,10 @@ type CustomerDetail = {
 };
 
 const TICKET_TYPES = ['SERVICE', 'INSTALLATION', 'COMPLAINT', 'DELIVERY'];
+const SUB_STATUSES = ['ACTIVE', 'INACTIVE', 'STOPPED'];
+
+type Product = { id: string; brand: string; model: string };
+type Plan = { id: string; name: string; priceInr: string };
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,6 +47,10 @@ export default function CustomerDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [ticketForm, setTicketForm] = useState({ type: 'SERVICE', slaHours: '24' });
   const [creating, setCreating] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [deviceForm, setDeviceForm] = useState({ productId: '', warrantyType: 'RESIDENTIAL' });
+  const [planId, setPlanId] = useState('');
 
   const load = useCallback(
     () => api<CustomerDetail>(`/customers/${id}`).then(setCustomer),
@@ -51,7 +59,56 @@ export default function CustomerDetailPage() {
 
   useEffect(() => {
     load().catch((e) => setError(e.message));
+    api<Product[]>('/products').then(setProducts).catch(() => {});
+    api<Plan[]>('/plans').then(setPlans).catch(() => {});
   }, [load]);
+
+  async function registerDevice(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await api(`/customers/${id}/devices`, {
+        method: 'POST',
+        body: {
+          productId: deviceForm.productId,
+          purchaseDate: new Date().toISOString(),
+          warrantyType: deviceForm.warrantyType,
+        },
+      });
+      setDeviceForm({ productId: '', warrantyType: 'RESIDENTIAL' });
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function startSubscription(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await api(`/customers/${id}/subscriptions`, {
+        method: 'POST',
+        body: { planId },
+      });
+      setPlanId('');
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function setSubStatus(subscriptionId: string, status: string) {
+    setError(null);
+    try {
+      await api(`/customers/subscriptions/${subscriptionId}/status`, {
+        method: 'PATCH',
+        body: { status },
+      });
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
 
   async function createTicket(e: FormEvent) {
     e.preventDefault();
@@ -112,6 +169,32 @@ export default function CustomerDetailPage() {
               </li>
             ))}
           </ul>
+          <form onSubmit={registerDevice} className="mt-3 flex gap-2 text-sm">
+            <select
+              value={deviceForm.productId}
+              onChange={(e) => setDeviceForm({ ...deviceForm, productId: e.target.value })}
+              className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5"
+              required
+            >
+              <option value="">Register purchase…</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.brand} {p.model}
+                </option>
+              ))}
+            </select>
+            <select
+              value={deviceForm.warrantyType}
+              onChange={(e) => setDeviceForm({ ...deviceForm, warrantyType: e.target.value })}
+              className="rounded-lg border border-slate-300 px-2 py-1.5"
+            >
+              <option value="RESIDENTIAL">Residential</option>
+              <option value="COMMERCIAL">Commercial</option>
+            </select>
+            <button className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700">
+              Add
+            </button>
+          </form>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5">
@@ -128,18 +211,42 @@ export default function CustomerDetailPage() {
                     ₹{s.plan.priceInr} · renews {formatDateTime(s.nextRenewalAt)}
                   </p>
                 </div>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                <select
+                  value={s.status}
+                  onChange={(e) => setSubStatus(s.id, e.target.value)}
+                  className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${
                     s.status === 'ACTIVE'
                       ? 'bg-emerald-100 text-emerald-700'
                       : 'bg-slate-200 text-slate-600'
                   }`}
                 >
-                  {s.status}
-                </span>
+                  {SUB_STATUSES.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
               </li>
             ))}
           </ul>
+          <form onSubmit={startSubscription} className="mt-3 flex gap-2 text-sm">
+            <select
+              value={planId}
+              onChange={(e) => setPlanId(e.target.value)}
+              className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5"
+              required
+            >
+              <option value="">Start subscription…</option>
+              {plans.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} (₹{Number(p.priceInr).toLocaleString('en-IN')})
+                </option>
+              ))}
+            </select>
+            <button className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700">
+              Start
+            </button>
+          </form>
         </section>
       </div>
 

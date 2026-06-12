@@ -2,11 +2,13 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role, UserStatus } from '@prisma/client';
 import { IsEnum, IsString, Matches } from 'class-validator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -24,6 +26,11 @@ class CreateStaffLoginDto {
   role: Role;
 }
 
+class UserStatusDto {
+  @IsEnum(UserStatus)
+  status: UserStatus;
+}
+
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
@@ -39,5 +46,11 @@ export class UsersController {
   @Roles(Role.ADMIN, Role.BACKEND)
   findAll(@Query('role') role?: Role) {
     return this.users.findAll(role);
+  }
+
+  @Patch(':id/status')
+  @Roles(Role.ADMIN)
+  setStatus(@Param('id') id: string, @Body() dto: UserStatusDto) {
+    return this.users.setStatus(id, dto.status);
   }
 }

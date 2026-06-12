@@ -1,0 +1,331 @@
+'use client';
+
+import Link from 'next/link';
+import { FormEvent, useCallback, useState } from 'react';
+
+type Dashboard = {
+  customerNo: string;
+  user: { name: string };
+  devices: {
+    id: string;
+    purchaseDate: string;
+    warrantyType: string;
+    warrantyExpiry: string;
+    product: { brand: string; model: string; variant: string | null };
+  }[];
+  subscriptions: {
+    id: string;
+    status: string;
+    nextRenewalAt: string | null;
+    plan: { name: string; priceInr: string };
+  }[];
+  tickets: {
+    id: string;
+    ticketNo: string;
+    type: string;
+    status: string;
+    slotDate: string | null;
+    slotWindow: string | null;
+    createdAt: string;
+  }[];
+};
+
+type TicketDetail = {
+  ticketNo: string;
+  status: string;
+  events: {
+    id: string;
+    toStatus: string | null;
+    remarks: string | null;
+    createdAt: string;
+  }[];
+};
+
+const fmt = (v: string | null) =>
+  v ? new Date(v).toLocaleDateString('en-IN') : '—';
+
+export default function AccountPage() {
+  const [step, setStep] = useState<'phone' | 'otp' | 'home'>('phone');
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [devOtp, setDevOtp] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [data, setData] = useState<Dashboard | null>(null);
+  const [timeline, setTimeline] = useState<TicketDetail | null>(null);
+  const [complaintType, setComplaintType] = useState('COMPLAINT');
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const loadDashboard = useCallback(async (authToken: string) => {
+    const res = await fetch('/api/v1/me/dashboard', {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    if (!res.ok) throw new Error('Could not load your account');
+    setData(await res.json());
+  }, []);
+
+  async function requestOtp(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/v1/auth/otp/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.message ?? 'Could not send OTP');
+      setDevOtp(d.devOtp ?? null);
+      setStep('otp');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyOtp(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/v1/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, code }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.message ?? 'Invalid OTP');
+      if (d.user.role !== 'CUSTOMER') {
+        setError('This page is for customers. Staff: use the portal login.');
+        return;
+      }
+      setToken(d.accessToken);
+      await loadDashboard(d.accessToken);
+      setStep('home');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function raiseTicket(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch('/api/v1/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ type: complaintType }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.message ?? 'Could not raise ticket');
+      setNotice(`Ticket ${d.ticketNo} raised — track its status below.`);
+      if (token) await loadDashboard(token);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function viewTimeline(ticketId: string) {
+    setError(null);
+    const res = await fetch(`/api/v1/me/tickets/${ticketId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setTimeline(await res.json());
+  }
+
+  return (
+    <main className="mx-auto max-w-2xl px-6 py-12">
+      <Link href="/" className="text-sm text-blue-600 hover:underline">
+        ← Home
+      </Link>
+      <h1 className="mt-2 text-2xl font-bold">My Account</h1>
+
+      {step === 'phone' && (
+        <form onSubmit={requestOtp} className="mt-6 max-w-sm space-y-3">
+          <input
+            placeholder="Registered mobile number"
+            value={phone}
+            maxLength={10}
+            inputMode="numeric"
+            onChange={(e) => setPhone(e.target.value.trim())}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            required
+          />
+          <button
+            disabled={busy}
+            className="w-full rounded-lg bg-blue-600 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {busy ? 'Sending…' : 'Send OTP'}
+          </button>
+        </form>
+      )}
+
+      {step === 'otp' && (
+        <form onSubmit={verifyOtp} className="mt-6 max-w-sm space-y-3">
+          {devOtp && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Dev mode OTP: <span className="font-mono font-bold">{devOtp}</span>
+            </p>
+          )}
+          <input
+            placeholder="6-digit OTP"
+            value={code}
+            maxLength={6}
+            inputMode="numeric"
+            onChange={(e) => setCode(e.target.value.trim())}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 tracking-widest"
+            required
+          />
+          <button
+            disabled={busy}
+            className="w-full rounded-lg bg-blue-600 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {busy ? 'Verifying…' : 'Continue'}
+          </button>
+        </form>
+      )}
+
+      {step === 'home' && data && (
+        <div className="mt-6 space-y-6">
+          <p className="text-slate-600">
+            Welcome back, <span className="font-semibold">{data.user.name}</span>{' '}
+            <span className="font-mono text-sm text-slate-400">{data.customerNo}</span>
+          </p>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="font-semibold">My purifiers & warranty</h2>
+            {data.devices.length === 0 && (
+              <p className="mt-2 text-sm text-slate-400">No devices registered yet.</p>
+            )}
+            <ul className="mt-2 space-y-2 text-sm">
+              {data.devices.map((d) => (
+                <li key={d.id} className="rounded-lg bg-slate-50 p-3">
+                  <p className="font-medium">
+                    {d.product.brand} {d.product.model}
+                    {d.product.variant ? ` (${d.product.variant})` : ''}
+                  </p>
+                  <p className="text-slate-500">
+                    Purchased {fmt(d.purchaseDate)} · {d.warrantyType} warranty until{' '}
+                    <span
+                      className={
+                        new Date(d.warrantyExpiry) > new Date()
+                          ? 'font-medium text-emerald-600'
+                          : 'font-medium text-rose-600'
+                      }
+                    >
+                      {fmt(d.warrantyExpiry)}
+                    </span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="font-semibold">My subscriptions</h2>
+            <ul className="mt-2 space-y-2 text-sm">
+              {data.subscriptions.map((s) => (
+                <li key={s.id} className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                  <span>
+                    <span className="font-medium">{s.plan.name}</span> · ₹
+                    {Number(s.plan.priceInr).toLocaleString('en-IN')} · renews{' '}
+                    {fmt(s.nextRenewalAt)}
+                  </span>
+                  <Link href="/renew" className="text-blue-600 hover:underline">
+                    Renew
+                  </Link>
+                </li>
+              ))}
+              {data.subscriptions.length === 0 && (
+                <p className="text-slate-400">No subscriptions.</p>
+              )}
+            </ul>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold">My service tickets</h2>
+              <form onSubmit={raiseTicket} className="flex items-center gap-2 text-sm">
+                <select
+                  value={complaintType}
+                  onChange={(e) => setComplaintType(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-2 py-1.5"
+                >
+                  <option value="COMPLAINT">Complaint</option>
+                  <option value="SERVICE">Service request</option>
+                </select>
+                <button
+                  disabled={busy}
+                  className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Raise ticket
+                </button>
+              </form>
+            </div>
+            {notice && (
+              <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                {notice}
+              </p>
+            )}
+            <ul className="mt-3 space-y-2 text-sm">
+              {data.tickets.map((t) => (
+                <li
+                  key={t.id}
+                  className="flex items-center justify-between rounded-lg bg-slate-50 p-3"
+                >
+                  <span className="font-mono">{t.ticketNo}</span>
+                  <span>{t.type}</span>
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                    {t.status.replace('_', ' ')}
+                  </span>
+                  <button
+                    onClick={() => viewTimeline(t.id)}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Track
+                  </button>
+                </li>
+              ))}
+              {data.tickets.length === 0 && <p className="text-slate-400">No tickets.</p>}
+            </ul>
+
+            {timeline && (
+              <div className="mt-4 rounded-lg border border-slate-200 p-4">
+                <p className="font-medium">
+                  {timeline.ticketNo} — {timeline.status.replace('_', ' ')}
+                </p>
+                <ol className="mt-2 space-y-2 text-sm">
+                  {timeline.events.map((ev) => (
+                    <li key={ev.id} className="border-l-2 border-slate-200 pl-3">
+                      <span className="font-medium">
+                        {ev.toStatus?.replace('_', ' ') ?? 'Update'}
+                      </span>
+                      {ev.remarks && <span className="text-slate-500"> — {ev.remarks}</span>}
+                      <span className="block text-xs text-slate-400">
+                        {new Date(ev.createdAt).toLocaleString('en-IN')}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
+    </main>
+  );
+}

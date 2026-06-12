@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -22,5 +22,9 @@ export class UsersService {
       where: role ? { role } : undefined,
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  setStatus(id: string, status: UserStatus) {
+    return this.prisma.user.update({ where: { id }, data: { status } });
   }
 }
