@@ -1,0 +1,140 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { api } from '@/lib/api';
+
+type Lead = {
+  id: string;
+  tempId: string;
+  source: string;
+  name: string | null;
+  phone: string | null;
+  location: string | null;
+  status: string;
+  createdAt: string;
+  product: { brand: string; model: string } | null;
+  assignedSales: { name: string } | null;
+};
+
+const STATUSES = ['NEW', 'CONTACTED', 'CONVERTED', 'LOST'];
+
+const STATUS_BADGE: Record<string, string> = {
+  NEW: 'bg-blue-100 text-blue-700',
+  CONTACTED: 'bg-amber-100 text-amber-700',
+  CONVERTED: 'bg-emerald-100 text-emerald-700',
+  LOST: 'bg-slate-200 text-slate-500',
+};
+
+export default function LeadsPage() {
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [filter, setFilter] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const qs = filter ? `?status=${filter}` : '';
+    setLeads(await api<Lead[]>(`/leads${qs}`));
+  }, [filter]);
+
+  useEffect(() => {
+    load().catch((e) => setError(e.message));
+  }, [load]);
+
+  async function setStatus(id: string, status: string) {
+    setError(null);
+    try {
+      await api(`/leads/${id}`, { method: 'PATCH', body: { status } });
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold">Leads</h1>
+      <p className="mt-1 text-sm text-slate-500">
+        Captured from product taps, referrals, buy-back interest and sales
+        executives. New leads trigger automatic WhatsApp follow-ups.
+      </p>
+
+      <select
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        className="mt-4 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+      >
+        <option value="">All statuses</option>
+        {STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+
+      {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
+
+      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-left text-slate-500">
+            <tr>
+              <th className="px-4 py-3">Lead ID</th>
+              <th className="px-4 py-3">Source</th>
+              <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Phone</th>
+              <th className="px-4 py-3">Interest</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Update</th>
+            </tr>
+          </thead>
+          <tbody>
+            {leads.map((l) => (
+              <tr key={l.id} className="border-t border-slate-100">
+                <td className="px-4 py-3 font-mono">{l.tempId}</td>
+                <td className="px-4 py-3">{l.source}</td>
+                <td className="px-4 py-3">{l.name ?? '—'}</td>
+                <td className="px-4 py-3">
+                  {l.phone ? (
+                    <a href={`tel:${l.phone}`} className="text-blue-600 hover:underline">
+                      {l.phone}
+                    </a>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {l.product ? `${l.product.brand} ${l.product.model}` : '—'}
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[l.status]}`}
+                  >
+                    {l.status}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <select
+                    value={l.status}
+                    onChange={(e) => setStatus(l.id, e.target.value)}
+                    className="rounded border border-slate-300 px-2 py-1 text-xs"
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+            {leads.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                  No leads yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

@@ -6,15 +6,25 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  BillingPeriod,
   OrderStatus,
   OrderType,
   PaymentStatus,
   Prisma,
   Role,
+  SubscriptionStatus,
 } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { verifyPaymentSignature } from './razorpay-signature';
 import { RazorpayService } from './razorpay.service';
+
+const PERIOD_MONTHS: Record<BillingPeriod, number> = {
+  MONTHLY: 1,
+  QUARTERLY: 3,
+  HALF_YEARLY: 6,
+  YEARLY: 12,
+};
 
 @Injectable()
 export class CheckoutService {
@@ -22,6 +32,7 @@ export class CheckoutService {
     private readonly prisma: PrismaService,
     private readonly razorpay: RazorpayService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async nextOrderNo(): Promise<string> {
@@ -88,19 +99,56 @@ export class CheckoutService {
     );
 
     const customer = await this.findOrCreateCustomer(input);
+    return this.createOrderWithGateway({
+      customerId: customer.id,
+      customerNo: customer.customerNo,
+      type: OrderType.PRODUCT,
+      amountInr,
+      items,
+    });
+  }
+
+  // One-click subscription renewal (FRD 1.1) — order linked to the
+  // subscription it extends on payment success.
+  async createRenewal(userId: string, subscriptionId: string) {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { id: subscriptionId, customer: { userId } },
+      include: { plan: true, customer: true },
+    });
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+    return this.createOrderWithGateway({
+      customerId: subscription.customerId,
+      customerNo: subscription.customer.customerNo,
+      type: OrderType.RENEWAL,
+      amountInr: Number(subscription.plan.priceInr),
+      subscriptionId: subscription.id,
+    });
+  }
+
+  private async createOrderWithGateway(input: {
+    customerId: string;
+    customerNo: string;
+    type: OrderType;
+    amountInr: number;
+    subscriptionId?: string;
+    items?: { productId: string; qty: number; priceInr: Prisma.Decimal }[];
+  }) {
     const orderNo = await this.nextOrderNo();
-    const gateway = await this.razorpay.createOrder(amountInr, orderNo);
+    const gateway = await this.razorpay.createOrder(input.amountInr, orderNo);
 
     const order = await this.prisma.order.create({
       data: {
         orderNo,
-        customerId: customer.id,
-        type: OrderType.PRODUCT,
-        amountInr: new Prisma.Decimal(amountInr),
+        customerId: input.customerId,
+        type: input.type,
+        amountInr: new Prisma.Decimal(input.amountInr),
         razorpayOrderId: gateway.razorpayOrderId,
-        items: { create: items },
+        subscriptionId: input.subscriptionId,
+        ...(input.items ? { items: { create: input.items } } : {}),
         payments: {
-          create: { amountInr: new Prisma.Decimal(amountInr) },
+          create: { amountInr: new Prisma.Decimal(input.amountInr) },
         },
       },
     });
@@ -108,8 +156,8 @@ export class CheckoutService {
     return {
       orderId: order.id,
       orderNo: order.orderNo,
-      amountInr,
-      customerNo: customer.customerNo,
+      amountInr: input.amountInr,
+      customerNo: input.customerNo,
       razorpay: gateway,
     };
   }
@@ -125,7 +173,6 @@ export class CheckoutService {
   }) {
     const order = await this.prisma.order.findUnique({
       where: { id: input.orderId },
-      include: { payments: true },
     });
     if (!order || order.razorpayOrderId !== input.razorpayOrderId) {
       throw new NotFoundException('Order not found');
@@ -152,21 +199,9 @@ export class CheckoutService {
       }
     }
 
-    const updated = await this.prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: OrderStatus.PAID,
-        payments: {
-          update: {
-            where: { id: order.payments[0].id },
-            data: {
-              status: PaymentStatus.CAPTURED,
-              razorpayPaymentId: input.razorpayPaymentId,
-              signature: input.razorpaySignature,
-            },
-          },
-        },
-      },
+    const updated = await this.applyPaymentSuccess(order.id, {
+      razorpayPaymentId: input.razorpayPaymentId,
+      signature: input.razorpaySignature,
     });
     return { orderNo: updated.orderNo, status: updated.status };
   }
@@ -188,21 +223,17 @@ export class CheckoutService {
     if (!order) return { handled: false };
 
     if (event.event === 'payment.captured') {
-      await this.prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: OrderStatus.PAID,
-          payments: {
-            update: {
-              where: { id: order.payments[0].id },
-              data: {
-                status: PaymentStatus.CAPTURED,
-                razorpayPaymentId: entity.id,
-                webhookPayload: event as object,
-              },
-            },
-          },
-        },
+      if (order.status === OrderStatus.PAID) {
+        // Already confirmed via browser callback; just record the webhook.
+        await this.prisma.payment.update({
+          where: { id: order.payments[0].id },
+          data: { webhookPayload: event as object },
+        });
+        return { handled: true };
+      }
+      await this.applyPaymentSuccess(order.id, {
+        razorpayPaymentId: entity.id,
+        webhookPayload: event as object,
       });
       return { handled: true };
     }
@@ -228,5 +259,84 @@ export class CheckoutService {
     }
 
     return { handled: false };
+  }
+
+  /**
+   * Single success path for both browser confirmation and webhook:
+   * marks the order paid, extends the subscription for renewals, and fires
+   * the FRD notification set (customer WhatsApp+SMS, company WhatsApp).
+   */
+  private async applyPaymentSuccess(
+    orderId: string,
+    payment: {
+      razorpayPaymentId?: string;
+      signature?: string;
+      webhookPayload?: object;
+    },
+  ) {
+    const order = await this.prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: {
+        payments: true,
+        customer: { include: { user: true } },
+        subscription: { include: { plan: true } },
+      },
+    });
+
+    const updated = await this.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: OrderStatus.PAID,
+        payments: {
+          update: {
+            where: { id: order.payments[0].id },
+            data: {
+              status: PaymentStatus.CAPTURED,
+              razorpayPaymentId: payment.razorpayPaymentId,
+              signature: payment.signature,
+              ...(payment.webhookPayload
+                ? { webhookPayload: payment.webhookPayload }
+                : {}),
+            },
+          },
+        },
+      },
+    });
+
+    if (order.type === OrderType.RENEWAL && order.subscription) {
+      const months = PERIOD_MONTHS[order.subscription.plan.billingPeriod];
+      const base =
+        order.subscription.nextRenewalAt &&
+        order.subscription.nextRenewalAt > new Date()
+          ? order.subscription.nextRenewalAt
+          : new Date();
+      const next = new Date(base);
+      next.setMonth(next.getMonth() + months);
+      await this.prisma.subscription.update({
+        where: { id: order.subscription.id },
+        data: { status: SubscriptionStatus.ACTIVE, nextRenewalAt: next },
+      });
+    }
+
+    const phone = order.customer.user.phone;
+    const amount = `₹${Number(order.amountInr).toLocaleString('en-IN')}`;
+    await this.notifications.sendBoth({
+      recipient: phone,
+      template:
+        order.type === OrderType.RENEWAL ? 'RENEWAL_CONFIRMED' : 'ORDER_CONFIRMED',
+      message:
+        order.type === OrderType.RENEWAL
+          ? `Payment of ${amount} received — your Anthar Works subscription is renewed. Order ${order.orderNo}.`
+          : `Thanks for your purchase! Order ${order.orderNo} (${amount}) is confirmed. We'll share delivery and installation dates shortly.`,
+      params: [order.orderNo, amount],
+      payload: { orderId: order.id },
+    });
+    await this.notifications.notifyCompany(
+      'NEW_ORDER_ALERT',
+      `New ${order.type} order ${order.orderNo} — ${amount} from ${order.customer.user.name} (${order.customer.customerNo}, ${phone}).`,
+      [order.orderNo, amount, order.customer.user.name],
+    );
+
+    return updated;
   }
 }

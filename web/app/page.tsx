@@ -18,6 +18,12 @@ export default function StorefrontHome() {
           Browse purifiers
         </Link>
         <Link
+          href="/renew"
+          className="rounded-lg bg-emerald-600 px-5 py-2.5 font-medium text-white hover:bg-emerald-700"
+        >
+          Renew subscription
+        </Link>
+        <Link
           href="/portal"
           className="rounded-lg border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-100"
         >

@@ -177,6 +177,7 @@ model Subscription {
 
   customer Customer @relation(fields: [customerId], references: [id])
   plan     Plan     @relation(fields: [planId], references: [id])
+  orders   Order[]
 
   @@index([status, nextRenewalAt])
   @@map("subscriptions")
@@ -228,12 +229,15 @@ model Order {
   amountInr       Decimal     @db.Decimal(10, 2)
   status          OrderStatus @default(CREATED)
   razorpayOrderId String?     @unique
+  // Set for RENEWAL orders: the subscription extended on successful payment.
+  subscriptionId  String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  customer Customer    @relation(fields: [customerId], references: [id])
-  items    OrderItem[]
-  payments Payment[]
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  items        OrderItem[]
+  payments     Payment[]
 
   @@index([status, createdAt])
   @@map("orders")

@@ -6,6 +6,8 @@ import { CatalogModule } from './catalog/catalog.module';
 import { CustomersModule } from './customers/customers.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthController } from './health/health.controller';
+import { LeadsModule } from './leads/leads.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReportsModule } from './reports/reports.module';
@@ -16,6 +18,7 @@ import { UsersModule } from './users/users.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    NotificationsModule,
     AuthModule,
     UsersModule,
     CustomersModule,
@@ -25,6 +28,7 @@ import { UsersModule } from './users/users.module';
     AllocationsModule,
     ReportsModule,
     PaymentsModule,
+    LeadsModule,
   ],
   controllers: [HealthController],
 })
