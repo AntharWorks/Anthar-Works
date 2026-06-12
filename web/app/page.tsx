@@ -24,6 +24,18 @@ export default function StorefrontHome() {
           Renew subscription
         </Link>
         <Link
+          href="/account"
+          className="rounded-lg border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-100"
+        >
+          My account
+        </Link>
+        <Link
+          href="/refer"
+          className="rounded-lg border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-100"
+        >
+          Refer / Buy-back
+        </Link>
+        <Link
           href="/portal"
           className="rounded-lg border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-100"
         >

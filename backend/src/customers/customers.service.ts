@@ -3,12 +3,28 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import {
+  BillingPeriod,
+  Role,
+  SubscriptionStatus,
+  WarrantyType,
+} from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+
+const PERIOD_MONTHS: Record<BillingPeriod, number> = {
+  MONTHLY: 1,
+  QUARTERLY: 3,
+  HALF_YEARLY: 6,
+  YEARLY: 12,
+};
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   private async nextCustomerNo(): Promise<string> {
     const count = await this.prisma.customer.count();
@@ -90,5 +106,55 @@ export class CustomersService {
       throw new NotFoundException('Customer not found');
     }
     return customer;
+  }
+
+  // Register a purchased device; 1-year warranty per FRD complete purchases.
+  async addDevice(
+    customerId: string,
+    input: { productId: string; purchaseDate: Date; warrantyType: WarrantyType },
+  ) {
+    const warrantyExpiry = new Date(input.purchaseDate);
+    warrantyExpiry.setFullYear(warrantyExpiry.getFullYear() + 1);
+    return this.prisma.customerDevice.create({
+      data: { customerId, ...input, warrantyExpiry },
+      include: { product: true },
+    });
+  }
+
+  // Start a subscription for a customer (staff-registered purchase).
+  async addSubscription(
+    customerId: string,
+    input: { planId: string; startDate?: Date },
+  ) {
+    const plan = await this.prisma.plan.findUniqueOrThrow({
+      where: { id: input.planId },
+    });
+    const startDate = input.startDate ?? new Date();
+    const nextRenewalAt = new Date(startDate);
+    nextRenewalAt.setMonth(
+      nextRenewalAt.getMonth() + PERIOD_MONTHS[plan.billingPeriod],
+    );
+    const subscription = await this.prisma.subscription.create({
+      data: { customerId, planId: plan.id, startDate, nextRenewalAt },
+      include: { plan: true, customer: { include: { user: true } } },
+    });
+
+    await this.notifications.sendBoth({
+      recipient: subscription.customer.user.phone,
+      template: 'SUBSCRIPTION_STARTED',
+      message: `Welcome to Anthar Works! Your ${plan.name} subscription is active. Next renewal: ${nextRenewalAt.toLocaleDateString('en-IN')}.`,
+      params: [plan.name, nextRenewalAt.toLocaleDateString('en-IN')],
+      payload: { subscriptionId: subscription.id },
+    });
+    return subscription;
+  }
+
+  // FRD 1.2 granular control: manually flip a subscription's status.
+  async setSubscriptionStatus(id: string, status: SubscriptionStatus) {
+    return this.prisma.subscription.update({
+      where: { id },
+      data: { status },
+      include: { plan: true },
+    });
   }
 }

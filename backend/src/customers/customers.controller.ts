@@ -3,13 +3,22 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role, SubscriptionStatus, WarrantyType } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Matches, Min } from 'class-validator';
+import {
+  IsDate,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Min,
+} from 'class-validator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -51,6 +60,33 @@ class ListCustomersDto {
   page?: number;
 }
 
+class AddDeviceDto {
+  @IsString()
+  productId: string;
+
+  @Type(() => Date)
+  @IsDate()
+  purchaseDate: Date;
+
+  @IsEnum(WarrantyType)
+  warrantyType: WarrantyType;
+}
+
+class AddSubscriptionDto {
+  @IsString()
+  planId: string;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  startDate?: Date;
+}
+
+class SubscriptionStatusDto {
+  @IsEnum(SubscriptionStatus)
+  status: SubscriptionStatus;
+}
+
 @Controller('customers')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN, Role.BACKEND)
@@ -70,5 +106,23 @@ export class CustomersController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.customers.findOne(id);
+  }
+
+  @Post(':id/devices')
+  addDevice(@Param('id') id: string, @Body() dto: AddDeviceDto) {
+    return this.customers.addDevice(id, dto);
+  }
+
+  @Post(':id/subscriptions')
+  addSubscription(@Param('id') id: string, @Body() dto: AddSubscriptionDto) {
+    return this.customers.addSubscription(id, dto);
+  }
+
+  @Patch('subscriptions/:subscriptionId/status')
+  setSubscriptionStatus(
+    @Param('subscriptionId') subscriptionId: string,
+    @Body() dto: SubscriptionStatusDto,
+  ) {
+    return this.customers.setSubscriptionStatus(subscriptionId, dto.status);
   }
 }

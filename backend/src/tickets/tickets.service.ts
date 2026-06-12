@@ -43,6 +43,30 @@ export class TicketsService {
     return ticket;
   }
 
+  // Customer-raised complaint: resolve their customer record from the JWT.
+  async createForUser(userId: string, type: TicketType) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { userId },
+    });
+    if (!customer) {
+      throw new NotFoundException('No customer profile for this account');
+    }
+    return this.create({
+      customerId: customer.id,
+      type,
+      createdById: userId,
+      slaDueAt: new Date(Date.now() + 48 * 3600 * 1000),
+    });
+  }
+
+  async findOneForUser(userId: string, ticketId: string) {
+    const ticket = await this.findOne(ticketId);
+    if (ticket.customer.userId !== userId) {
+      throw new NotFoundException('Ticket not found');
+    }
+    return ticket;
+  }
+
   async findAll(params: {
     status?: TicketStatus;
     technicianId?: string;

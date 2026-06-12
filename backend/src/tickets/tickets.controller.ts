@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -27,8 +28,10 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { TicketsService } from './tickets.service';
 
 class CreateTicketDto {
+  // Optional for CUSTOMER role (resolved from the JWT); required for staff.
+  @IsOptional()
   @IsString()
-  customerId: string;
+  customerId?: string;
 
   @IsEnum(TicketType)
   type: TicketType;
@@ -124,7 +127,17 @@ export class TicketsController {
   @Post()
   @Roles(Role.ADMIN, Role.BACKEND, Role.CUSTOMER)
   create(@Body() dto: CreateTicketDto, @Req() req: any) {
-    return this.tickets.create({ ...dto, createdById: req.user.sub });
+    if (req.user.role === Role.CUSTOMER) {
+      return this.tickets.createForUser(req.user.sub, dto.type);
+    }
+    if (!dto.customerId) {
+      throw new BadRequestException('customerId is required');
+    }
+    return this.tickets.create({
+      ...dto,
+      customerId: dto.customerId,
+      createdById: req.user.sub,
+    });
   }
 
   @Get()

@@ -16,6 +16,7 @@ import {
 } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TicketsService } from '../tickets/tickets.service';
 import { verifyPaymentSignature } from './razorpay-signature';
 import { RazorpayService } from './razorpay.service';
 
@@ -33,6 +34,7 @@ export class CheckoutService {
     private readonly razorpay: RazorpayService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly tickets: TicketsService,
   ) {}
 
   private async nextOrderNo(): Promise<string> {
@@ -318,6 +320,19 @@ export class CheckoutService {
       });
     }
 
+    // FRD: once payment is done the customer receives a ticket number for
+    // installation scheduling.
+    let installationTicketNo: string | null = null;
+    if (order.type === OrderType.PRODUCT) {
+      const ticket = await this.tickets.create({
+        customerId: order.customerId,
+        type: 'INSTALLATION',
+        createdById: order.customer.user.id,
+        slaDueAt: new Date(Date.now() + 72 * 3600 * 1000),
+      });
+      installationTicketNo = ticket.ticketNo;
+    }
+
     const phone = order.customer.user.phone;
     const amount = `₹${Number(order.amountInr).toLocaleString('en-IN')}`;
     await this.notifications.sendBoth({
@@ -327,9 +342,13 @@ export class CheckoutService {
       message:
         order.type === OrderType.RENEWAL
           ? `Payment of ${amount} received — your Anthar Works subscription is renewed. Order ${order.orderNo}.`
-          : `Thanks for your purchase! Order ${order.orderNo} (${amount}) is confirmed. We'll share delivery and installation dates shortly.`,
+          : `Thanks for your purchase! Order ${order.orderNo} (${amount}) is confirmed.${
+              installationTicketNo
+                ? ` Your installation ticket is ${installationTicketNo} — we'll confirm the schedule shortly.`
+                : ''
+            }`,
       params: [order.orderNo, amount],
-      payload: { orderId: order.id },
+      payload: { orderId: order.id, installationTicketNo },
     });
     await this.notifications.notifyCompany(
       'NEW_ORDER_ALERT',

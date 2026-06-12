@@ -29,6 +29,19 @@ export default function StaffPage() {
     load().catch((e) => setError(e.message));
   }, [load]);
 
+  async function toggleStatus(u: StaffUser) {
+    setError(null);
+    try {
+      await api(`/users/${u.id}/status`, {
+        method: 'PATCH',
+        body: { status: u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' },
+      });
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
   async function createLogin(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -102,6 +115,7 @@ export default function StaffPage() {
               <th className="px-4 py-3">Mobile</th>
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3">Status</th>
+              {isAdmin && <th className="px-4 py-3" />}
             </tr>
           </thead>
           <tbody>
@@ -114,7 +128,27 @@ export default function StaffPage() {
                     {u.role}
                   </span>
                 </td>
-                <td className="px-4 py-3">{u.status}</td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      u.status === 'ACTIVE'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-rose-100 text-rose-700'
+                    }`}
+                  >
+                    {u.status}
+                  </span>
+                </td>
+                {isAdmin && (
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => toggleStatus(u)}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      {u.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

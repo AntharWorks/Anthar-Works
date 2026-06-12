@@ -4,6 +4,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { TicketsService } from '../tickets/tickets.service';
 import { CheckoutService } from './checkout.service';
 
 // Customer self-service: powers the web renewal flow and the app's
@@ -15,6 +16,7 @@ export class MeController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly checkout: CheckoutService,
+    private readonly tickets: TicketsService,
   ) {}
 
   @Get('subscriptions')
@@ -42,5 +44,11 @@ export class MeController {
   @Post('subscriptions/:id/renew')
   renew(@Param('id') id: string, @Req() req: any) {
     return this.checkout.createRenewal(req.user.sub, id);
+  }
+
+  // Ticket status tracking with timeline (ownership-checked).
+  @Get('tickets/:id')
+  myTicket(@Param('id') id: string, @Req() req: any) {
+    return this.tickets.findOneForUser(req.user.sub, id);
   }
 }
