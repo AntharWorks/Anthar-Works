@@ -178,6 +178,23 @@ async function main() {
     create: { backendId: backend.id, technicianId: tech2.id },
   });
 
+  await Promise.all(
+    [
+      { sku: 'FLT-SED-01', name: 'Sediment Filter', stock: 120 },
+      { sku: 'FLT-CRB-01', name: 'Carbon Filter', stock: 95 },
+      { sku: 'MEM-RO-75', name: 'RO Membrane 75 GPD', stock: 40 },
+      { sku: 'LMP-UV-11', name: 'UV Lamp 11W', stock: 30 },
+      { sku: 'PMP-BST-24', name: 'Booster Pump 24V', stock: 12 },
+      { sku: 'PIP-14-WHT', name: '1/4" Tubing (metre)', stock: 500 },
+    ].map((p) =>
+      prisma.sparePart.upsert({
+        where: { sku: p.sku },
+        update: { stock: p.stock },
+        create: p,
+      }),
+    ),
+  );
+
   console.log('Seed complete. Logins (OTP shown in dev responses):');
   console.log('  Admin    9000000001 | Backend 9000000002');
   console.log('  Tech     9000000003 / 9000000004 | Sales 9000000005');
