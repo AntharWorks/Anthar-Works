@@ -4,7 +4,7 @@ A dual-channel ecosystem (responsive web portal + single Android app) for a wate
 subscription and service company, serving five personas — **Customer, Admin, Backend Staff,
 Field Technician, Sales Executive** — against one common PostgreSQL database.
 
-📄 Full plan: [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) · Requirements: [docs/FRD.pdf](docs/FRD.pdf)
+📄 Full plan: [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) · Requirements: [docs/FRD.pdf](docs/FRD.pdf) · Deploying: [beginner guide](docs/DEPLOYMENT_FOR_BEGINNERS.md) / [technical reference](docs/DEPLOYMENT.md)
 
 ## Repository layout
 
