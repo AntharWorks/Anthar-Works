@@ -3,65 +3,107 @@ package works.anthar.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.remember
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import works.anthar.app.data.ApiClient
+import works.anthar.app.data.Session
+import works.anthar.app.ui.LoginScreen
+import works.anthar.app.ui.customer.CustomerHomeScreen
+import works.anthar.app.ui.field.CaptureScreen
+import works.anthar.app.ui.field.JobDetailScreen
+import works.anthar.app.ui.field.JobListScreen
+import works.anthar.app.ui.sales.NewLeadCard
+import works.anthar.app.ui.staff.StaffHomeScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val session = Session(applicationContext)
+        ApiClient.setTokenProvider { session.token }
         setContent {
             MaterialTheme {
-                AntharWorksApp()
+                AntharWorksApp(session)
             }
         }
     }
 }
 
-/**
- * Role-routed navigation shell. After OTP verification the backend returns
- * the user's role; we route to that persona's graph. Phase 2 replaces the
- * placeholders with the real feature graphs (Technician first).
- */
-@Composable
-fun AntharWorksApp() {
-    val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "login") {
-        composable("login") { PlaceholderScreen("OTP Login (phone + SMS code)") }
-        composable("customer") { PlaceholderScreen("Customer — dashboard, tickets, renewals, marketplace") }
-        composable("admin") { PlaceholderScreen("Admin — master dashboard, user logins, allocations") }
-        composable("backend") { PlaceholderScreen("Backend — ticket assignment, SLA tracking") }
-        composable("technician") { PlaceholderScreen("Technician — jobs, status, camera capture, spares") }
-        composable("sales") { PlaceholderScreen("Sales — leads, targets, delivery jobs") }
-    }
-}
-
-@Composable
-private fun PlaceholderScreen(title: String) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(text = "Anthar Works", style = MaterialTheme.typography.headlineMedium)
-        Text(text = title, style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
 fun routeFor(persona: Persona): String = when (persona) {
     Persona.CUSTOMER -> "customer"
-    Persona.ADMIN -> "admin"
-    Persona.BACKEND -> "backend"
+    Persona.ADMIN -> "staff"
+    Persona.BACKEND -> "staff"
     Persona.TECHNICIAN -> "technician"
     Persona.SALES -> "sales"
+}
+
+/** One APK, five experiences: the OTP-verified role picks the graph. */
+@Composable
+fun AntharWorksApp(session: Session) {
+    val navController = rememberNavController()
+    val start = remember { session.persona?.let(::routeFor) ?: "login" }
+
+    fun logout(nav: NavHostController) {
+        session.clear()
+        nav.navigate("login") { popUpTo(0) }
+    }
+
+    NavHost(navController = navController, startDestination = start) {
+        composable("login") {
+            LoginScreen(session) { persona ->
+                navController.navigate(routeFor(persona)) { popUpTo(0) }
+            }
+        }
+
+        composable("technician") {
+            JobListScreen(
+                title = "My Jobs — ${session.userName ?: "Technician"}",
+                onOpenJob = { navController.navigate("job/$it") },
+                onLogout = { logout(navController) },
+            )
+        }
+
+        composable("sales") {
+            JobListScreen(
+                title = "Sales — ${session.userName ?: ""}",
+                onOpenJob = { navController.navigate("job/$it") },
+                onLogout = { logout(navController) },
+                extraContent = { NewLeadCard() },
+            )
+        }
+
+        composable("job/{ticketId}") { backStackEntry ->
+            val ticketId = backStackEntry.arguments?.getString("ticketId") ?: return@composable
+            JobDetailScreen(
+                ticketId = ticketId,
+                onBack = { navController.popBackStack() },
+                onCapture = { id, phase -> navController.navigate("capture/$id/$phase") },
+            )
+        }
+
+        composable("capture/{ticketId}/{phase}") { backStackEntry ->
+            val ticketId = backStackEntry.arguments?.getString("ticketId") ?: return@composable
+            val phase = backStackEntry.arguments?.getString("phase") ?: return@composable
+            CaptureScreen(
+                ticketId = ticketId,
+                phase = phase,
+                onDone = { navController.popBackStack() },
+            )
+        }
+
+        composable("customer") {
+            CustomerHomeScreen(onLogout = { logout(navController) })
+        }
+
+        composable("staff") {
+            StaffHomeScreen(
+                title = "Operations — ${session.userName ?: ""}",
+                onLogout = { logout(navController) },
+            )
+        }
+    }
 }

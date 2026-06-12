@@ -183,6 +183,7 @@ export class TicketsController {
     return this.tickets.transition(id, dto.to, req.user.sub, {
       reason: dto.reason,
       remarks: dto.remarks,
+      actorRole: req.user.role,
     });
   }
 }

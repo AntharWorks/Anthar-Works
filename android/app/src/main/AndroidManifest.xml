@@ -11,9 +11,12 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
+    <!-- usesCleartextTraffic permits the http://10.0.2.2 dev API on emulators;
+         production builds point at an https endpoint via -PapiBaseUrl. -->
     <application
         android:label="@string/app_name"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.AntharWorks">
         <activity
             android:name=".MainActivity"

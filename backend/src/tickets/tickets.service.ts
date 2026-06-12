@@ -165,7 +165,12 @@ export class TicketsService {
     ticketId: string,
     to: TicketStatus,
     actorId: string,
-    opts: { reason?: string; remarks?: string; extra?: object } = {},
+    opts: {
+      reason?: string;
+      remarks?: string;
+      extra?: object;
+      actorRole?: string;
+    } = {},
   ) {
     const ticket = await this.prisma.ticket.findUnique({
       where: { id: ticketId },
@@ -180,6 +185,26 @@ export class TicketsService {
     }
     if (requiresReason(to) && !opts.reason) {
       throw new BadRequestException(`A reason is required to mark ${to}`);
+    }
+
+    // FRD 1.4/1.5: field staff must upload live before & after photos
+    // (camera-only, geotagged) before a job can be completed.
+    if (
+      to === TicketStatus.COMPLETED &&
+      (opts.actorRole === 'TECHNICIAN' || opts.actorRole === 'SALES')
+    ) {
+      const phases = await this.prisma.ticketMedia.groupBy({
+        by: ['phase'],
+        where: { ticketId },
+        _count: true,
+        orderBy: { phase: 'asc' },
+      });
+      const have = new Set(phases.map((p) => p.phase));
+      if (!have.has('BEFORE') || !have.has('AFTER')) {
+        throw new BadRequestException(
+          'Before and after photos are required to complete this job',
+        );
+      }
     }
 
     const reasonField =
