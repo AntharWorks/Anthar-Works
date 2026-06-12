@@ -67,6 +67,110 @@ export class TicketsService {
     return ticket;
   }
 
+  // FRD: post-delivery, the customer picks their installation date & time.
+  async selectSlotForUser(
+    userId: string,
+    ticketId: string,
+    slot: { slotDate: Date; slotWindow?: string },
+  ) {
+    const ticket = await this.findOneForUser(userId, ticketId);
+    if (
+      ticket.status !== TicketStatus.CREATED &&
+      ticket.status !== TicketStatus.ASSIGNED
+    ) {
+      throw new BadRequestException(
+        'The slot can no longer be changed for this ticket — please contact support',
+      );
+    }
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.ticket.update({
+        where: { id: ticketId },
+        data: { slotDate: slot.slotDate, slotWindow: slot.slotWindow },
+      }),
+      this.prisma.ticketEvent.create({
+        data: {
+          ticketId,
+          actorId: userId,
+          remarks: `Customer selected slot ${slot.slotDate.toLocaleDateString('en-IN')}${
+            slot.slotWindow ? ` (${slot.slotWindow})` : ''
+          }`,
+        },
+      }),
+    ]);
+    await this.notifications.notifyCompany(
+      'CUSTOMER_SLOT_PICKED',
+      `${ticket.customer.user.name} picked ${slot.slotDate.toLocaleDateString('en-IN')} ${slot.slotWindow ?? ''} for ${ticket.ticketNo} (${ticket.type}). Confirm technician assignment.`,
+      [ticket.ticketNo],
+    );
+    return updated;
+  }
+
+  /**
+   * FRD 1.3: suggest the nearest available technicians for a ticket —
+   * technicians in the sets of backend staff allocated to the customer's
+   * pincode rank first, then everyone else, least-loaded first.
+   */
+  async suggestTechnicians(ticketId: string) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: { customer: true },
+    });
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    const pincode = ticket.customer.pincode;
+    const matchedTechnicianIds = new Set<string>();
+    if (pincode) {
+      const allocations = await this.prisma.backendAllocation.findMany({
+        where: { pincode },
+        select: { backendId: true },
+      });
+      if (allocations.length > 0) {
+        const maps = await this.prisma.backendTechnician.findMany({
+          where: { backendId: { in: allocations.map((a) => a.backendId) } },
+          select: { technicianId: true },
+        });
+        maps.forEach((m) => matchedTechnicianIds.add(m.technicianId));
+      }
+    }
+
+    const technicians = await this.prisma.user.findMany({
+      where: { role: 'TECHNICIAN', status: 'ACTIVE' },
+      select: { id: true, name: true, phone: true },
+    });
+    const openCounts = await this.prisma.ticket.groupBy({
+      by: ['assignedTechnicianId'],
+      where: {
+        assignedTechnicianId: { in: technicians.map((t) => t.id) },
+        status: {
+          notIn: [
+            TicketStatus.COMPLETED,
+            TicketStatus.CANCELLED,
+            TicketStatus.REJECTED,
+          ],
+        },
+      },
+      _count: true,
+      orderBy: { assignedTechnicianId: 'asc' },
+    });
+    const loads = new Map(
+      openCounts.map((c) => [c.assignedTechnicianId, c._count]),
+    );
+
+    return technicians
+      .map((t) => ({
+        ...t,
+        openJobs: loads.get(t.id) ?? 0,
+        matchesPincode: matchedTechnicianIds.has(t.id),
+      }))
+      .sort(
+        (a, b) =>
+          Number(b.matchesPincode) - Number(a.matchesPincode) ||
+          a.openJobs - b.openJobs,
+      );
+  }
+
   async findAll(params: {
     status?: TicketStatus;
     technicianId?: string;

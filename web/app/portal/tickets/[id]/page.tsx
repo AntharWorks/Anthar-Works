@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, getToken } from '@/lib/api';
 import {
   formatDateTime,
   REASON_REQUIRED,
@@ -13,7 +13,21 @@ import {
   TRANSITIONS,
 } from '@/lib/tickets';
 
-type Technician = { id: string; name: string; phone: string };
+type Technician = {
+  id: string;
+  name: string;
+  phone: string;
+  openJobs?: number;
+  matchesPincode?: boolean;
+};
+
+type Media = {
+  id: string;
+  phase: 'BEFORE' | 'AFTER';
+  latitude: number;
+  longitude: number;
+  capturedAt: string;
+};
 
 type TicketDetail = {
   id: string;
@@ -36,6 +50,8 @@ type TicketDetail = {
   };
   assignedTechnician: { id: string; name: string } | null;
   createdBy: { name: string };
+  media: Media[];
+  spareUsage: { id: string; qty: number; part: { name: string; sku: string } }[];
   events: {
     id: string;
     fromStatus: TicketStatus | null;
@@ -45,6 +61,33 @@ type TicketDetail = {
     actor: { name: string };
   }[];
 };
+
+// Job photos require the bearer token, so they're fetched as blobs.
+function AuthImage({ src, alt }: { src: string; alt: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    fetch(src, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then((r) => (r.ok ? r.blob() : Promise.reject()))
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => setUrl(null));
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [src]);
+  if (!url) {
+    return (
+      <div className="flex h-28 w-28 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
+        photo
+      </div>
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={url} alt={alt} className="h-28 w-28 rounded-lg object-cover" />;
+}
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -62,10 +105,13 @@ export default function TicketDetailPage() {
 
   useEffect(() => {
     load().catch((e) => setError(e.message));
-    api<Technician[]>('/users?role=TECHNICIAN')
+    // Pincode-matched + least-loaded technicians first (FRD 1.3).
+    api<Technician[]>(`/tickets/${id}/suggest-technicians`)
       .then(setTechnicians)
-      .catch(() => {});
-  }, [load]);
+      .catch(() =>
+        api<Technician[]>('/users?role=TECHNICIAN').then(setTechnicians).catch(() => {}),
+      );
+  }, [load, id]);
 
   async function run(action: () => Promise<unknown>) {
     setBusy(true);
@@ -189,7 +235,9 @@ export default function TicketDetailPage() {
                 <option value="">Select technician…</option>
                 {technicians.map((t) => (
                   <option key={t.id} value={t.id}>
+                    {t.matchesPincode ? '★ ' : ''}
                     {t.name} ({t.phone})
+                    {t.openJobs !== undefined ? ` — ${t.openJobs} open` : ''}
                   </option>
                 ))}
               </select>
@@ -276,7 +324,58 @@ export default function TicketDetailPage() {
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="font-semibold">Timeline</h2>
+          <h2 className="font-semibold">Job photos (geotagged)</h2>
+          {ticket.media.length === 0 && (
+            <p className="mt-2 text-sm text-slate-400">
+              No photos uploaded yet — the technician captures live before/after
+              photos in the app.
+            </p>
+          )}
+          <div className="mt-3 grid grid-cols-2 gap-4">
+            {(['BEFORE', 'AFTER'] as const).map((phase) => (
+              <div key={phase}>
+                <p className="text-xs font-semibold text-slate-500">{phase}</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {ticket.media
+                    .filter((m) => m.phase === phase)
+                    .map((m) => (
+                      <div key={m.id} className="text-xs">
+                        <AuthImage
+                          src={`/api/v1/tickets/${ticket.id}/media/${m.id}/file`}
+                          alt={`${phase} photo`}
+                        />
+                        <a
+                          href={`https://maps.google.com/?q=${m.latitude},${m.longitude}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 block text-blue-600 hover:underline"
+                        >
+                          📍 {m.latitude.toFixed(4)}, {m.longitude.toFixed(4)}
+                        </a>
+                        <span className="text-slate-400">
+                          {formatDateTime(m.capturedAt)}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {ticket.spareUsage.length > 0 && (
+            <>
+              <h2 className="mt-5 font-semibold">Spare parts used</h2>
+              <ul className="mt-2 space-y-1 text-sm">
+                {ticket.spareUsage.map((u) => (
+                  <li key={u.id}>
+                    {u.part.name} <span className="text-slate-400">({u.part.sku})</span> × {u.qty}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          <h2 className="mt-5 font-semibold">Timeline</h2>
           <ol className="mt-3 space-y-3 text-sm">
             {ticket.events.map((ev) => (
               <li key={ev.id} className="border-l-2 border-slate-200 pl-3">

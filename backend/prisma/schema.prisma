@@ -46,9 +46,25 @@ model User {
   assignedLeads       Lead[]
   salesTargets        SalesTarget[]
   createdPlans        Plan[]
+  refreshTokens       RefreshToken[]
 
   @@index([role, status])
   @@map("users")
+}
+
+// Opaque rotating refresh tokens; only the sha256 hash is stored.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+  @@map("refresh_tokens")
 }
 
 model OtpAttempt {

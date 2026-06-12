@@ -36,15 +36,16 @@ export default function LoginPage() {
     setError(null);
     setBusy(true);
     try {
-      const res = await api<{ accessToken: string; user: SessionUser }>(
-        '/auth/otp/verify',
-        { method: 'POST', body: { phone, code } },
-      );
+      const res = await api<{
+        accessToken: string;
+        refreshToken?: string;
+        user: SessionUser;
+      }>('/auth/otp/verify', { method: 'POST', body: { phone, code } });
       if (res.user.role !== 'ADMIN' && res.user.role !== 'BACKEND') {
         setError('This portal is for Admin and Backend staff only.');
         return;
       }
-      setSession(res.accessToken, res.user);
+      setSession(res.accessToken, res.user, res.refreshToken);
       router.replace('/portal');
     } catch (err: any) {
       setError(err.message);

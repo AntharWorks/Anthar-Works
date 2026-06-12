@@ -1,5 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { LeadSource, LeadStatus, NotificationChannel } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  LeadSource,
+  LeadStatus,
+  NotificationChannel,
+  Role,
+} from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -72,5 +77,65 @@ export class LeadsService {
     data: { status?: LeadStatus; assignedSalesId?: string },
   ) {
     return this.prisma.lead.update({ where: { id }, data });
+  }
+
+  /**
+   * FRD 1.5: temp-id lead becomes a unique customer id once the sale is
+   * confirmed by the backend team.
+   */
+  async convert(
+    id: string,
+    input: { address?: string; pincode?: string; city?: string },
+  ) {
+    const lead = await this.prisma.lead.findUnique({ where: { id } });
+    if (!lead) {
+      throw new NotFoundException('Lead not found');
+    }
+    if (lead.status === LeadStatus.CONVERTED && lead.customerId) {
+      return this.prisma.lead.findUniqueOrThrow({
+        where: { id },
+        include: { customer: true },
+      });
+    }
+    if (!lead.phone || !lead.name) {
+      throw new BadRequestException(
+        'Lead needs a name and phone number before conversion',
+      );
+    }
+    const existing = await this.prisma.user.findUnique({
+      where: { phone: lead.phone },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        'A user with this phone already exists — link manually from the customer page',
+      );
+    }
+
+    const count = await this.prisma.customer.count();
+    const customer = await this.prisma.customer.create({
+      data: {
+        customerNo: `AW-${String(count + 1).padStart(6, '0')}`,
+        address: input.address,
+        pincode: input.pincode,
+        city: input.city ?? lead.location,
+        user: {
+          create: { phone: lead.phone, name: lead.name, role: Role.CUSTOMER },
+        },
+      },
+    });
+    const updated = await this.prisma.lead.update({
+      where: { id },
+      data: { status: LeadStatus.CONVERTED, customerId: customer.id },
+      include: { customer: true },
+    });
+
+    await this.notifications.sendBoth({
+      recipient: lead.phone,
+      template: 'CUSTOMER_WELCOME',
+      message: `Welcome to Anthar Works, ${lead.name}! Your customer ID is ${customer.customerNo}. Track everything at /account.`,
+      params: [lead.name, customer.customerNo],
+      payload: { customerId: customer.id },
+    });
+    return updated;
   }
 }
