@@ -30,6 +30,8 @@ type Dashboard = {
   }[];
 };
 
+const SLOT_WINDOWS = ['10:00–12:00', '12:00–14:00', '14:00–16:00', '16:00–18:00'];
+
 type TicketDetail = {
   ticketNo: string;
   status: string;
@@ -52,6 +54,8 @@ export default function AccountPage() {
   const [token, setToken] = useState<string | null>(null);
   const [data, setData] = useState<Dashboard | null>(null);
   const [timeline, setTimeline] = useState<TicketDetail | null>(null);
+  const [slotFor, setSlotFor] = useState<string | null>(null);
+  const [slotForm, setSlotForm] = useState({ date: '', window: SLOT_WINDOWS[0] });
   const [complaintType, setComplaintType] = useState('COMPLAINT');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +133,36 @@ export default function AccountPage() {
       const d = await res.json();
       if (!res.ok) throw new Error(d?.message ?? 'Could not raise ticket');
       setNotice(`Ticket ${d.ticketNo} raised — track its status below.`);
+      if (token) await loadDashboard(token);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // FRD: customer selects the installation date & time post-delivery.
+  async function pickSlot(e: FormEvent) {
+    e.preventDefault();
+    if (!slotFor) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/me/tickets/${slotFor}/slot`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          slotDate: new Date(slotForm.date).toISOString(),
+          slotWindow: slotForm.window,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.message ?? 'Could not save slot');
+      setNotice('Slot saved — our team will confirm the technician shortly.');
+      setSlotFor(null);
       if (token) await loadDashboard(token);
     } catch (err: any) {
       setError(err.message);
@@ -281,21 +315,66 @@ export default function AccountPage() {
             )}
             <ul className="mt-3 space-y-2 text-sm">
               {data.tickets.map((t) => (
-                <li
-                  key={t.id}
-                  className="flex items-center justify-between rounded-lg bg-slate-50 p-3"
-                >
-                  <span className="font-mono">{t.ticketNo}</span>
-                  <span>{t.type}</span>
-                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                    {t.status.replace('_', ' ')}
-                  </span>
-                  <button
-                    onClick={() => viewTimeline(t.id)}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Track
-                  </button>
+                <li key={t.id} className="rounded-lg bg-slate-50 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono">{t.ticketNo}</span>
+                    <span>{t.type}</span>
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      {t.status.replace('_', ' ')}
+                    </span>
+                    <button
+                      onClick={() => viewTimeline(t.id)}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Track
+                    </button>
+                  </div>
+                  {t.slotDate ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Slot: {fmt(t.slotDate)} {t.slotWindow ?? ''}
+                    </p>
+                  ) : (
+                    ['CREATED', 'ASSIGNED'].includes(t.status) && (
+                      <div className="mt-2">
+                        {slotFor === t.id ? (
+                          <form onSubmit={pickSlot} className="flex flex-wrap items-center gap-2">
+                            <input
+                              type="date"
+                              value={slotForm.date}
+                              min={new Date().toISOString().slice(0, 10)}
+                              onChange={(e) => setSlotForm({ ...slotForm, date: e.target.value })}
+                              className="rounded-lg border border-slate-300 px-2 py-1"
+                              required
+                            />
+                            <select
+                              value={slotForm.window}
+                              onChange={(e) => setSlotForm({ ...slotForm, window: e.target.value })}
+                              className="rounded-lg border border-slate-300 px-2 py-1"
+                            >
+                              {SLOT_WINDOWS.map((w) => (
+                                <option key={w} value={w}>
+                                  {w}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              disabled={busy}
+                              className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              Save slot
+                            </button>
+                          </form>
+                        ) : (
+                          <button
+                            onClick={() => setSlotFor(t.id)}
+                            className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                          >
+                            Pick installation slot
+                          </button>
+                        )}
+                      </div>
+                    )
+                  )}
                 </li>
               ))}
               {data.tickets.length === 0 && <p className="text-slate-400">No tickets.</p>}

@@ -46,6 +46,20 @@ class UpdateLeadDto {
   assignedSalesId?: string;
 }
 
+class ConvertLeadDto {
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @Matches(/^\d{6}$/, { message: 'pincode must be 6 digits' })
+  pincode?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+}
+
 @Controller('leads')
 export class LeadsController {
   constructor(private readonly leads: LeadsService) {}
@@ -68,5 +82,12 @@ export class LeadsController {
   @Roles(Role.ADMIN, Role.BACKEND, Role.SALES)
   update(@Param('id') id: string, @Body() dto: UpdateLeadDto) {
     return this.leads.update(id, dto);
+  }
+
+  @Post(':id/convert')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.BACKEND)
+  convert(@Param('id') id: string, @Body() dto: ConvertLeadDto) {
+    return this.leads.convert(id, dto);
   }
 }

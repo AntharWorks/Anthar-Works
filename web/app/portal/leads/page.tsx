@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
@@ -13,8 +14,13 @@ type Lead = {
   status: string;
   createdAt: string;
   product: { brand: string; model: string } | null;
-  assignedSales: { name: string } | null;
+  assignedSales: { id: string; name: string } | null;
+  assignedSalesId?: string | null;
+  customerId: string | null;
+  customer: { customerNo: string } | null;
 };
+
+type SalesUser = { id: string; name: string };
 
 const STATUSES = ['NEW', 'CONTACTED', 'CONVERTED', 'LOST'];
 
@@ -27,6 +33,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [salesUsers, setSalesUsers] = useState<SalesUser[]>([]);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +44,36 @@ export default function LeadsPage() {
 
   useEffect(() => {
     load().catch((e) => setError(e.message));
+    api<SalesUser[]>('/users?role=SALES').then(setSalesUsers).catch(() => {});
   }, [load]);
+
+  async function assignSales(id: string, assignedSalesId: string) {
+    setError(null);
+    try {
+      await api(`/leads/${id}`, { method: 'PATCH', body: { assignedSalesId } });
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  // FRD 1.5: temp id -> unique customer id on confirmed sale.
+  async function convert(lead: Lead) {
+    const pincode = window.prompt(
+      `Convert ${lead.tempId} (${lead.name}) to a customer.\n6-digit pincode (optional):`,
+    );
+    if (pincode === null) return;
+    setError(null);
+    try {
+      await api(`/leads/${lead.id}/convert`, {
+        method: 'POST',
+        body: { pincode: /^\d{6}$/.test(pincode) ? pincode : undefined },
+      });
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
 
   async function setStatus(id: string, status: string) {
     setError(null);
@@ -81,8 +117,9 @@ export default function LeadsPage() {
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Phone</th>
               <th className="px-4 py-3">Interest</th>
+              <th className="px-4 py-3">Sales exec</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Update</th>
+              <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -104,6 +141,20 @@ export default function LeadsPage() {
                   {l.product ? `${l.product.brand} ${l.product.model}` : '—'}
                 </td>
                 <td className="px-4 py-3">
+                  <select
+                    value={l.assignedSales?.id ?? ''}
+                    onChange={(e) => e.target.value && assignSales(l.id, e.target.value)}
+                    className="rounded border border-slate-300 px-2 py-1 text-xs"
+                  >
+                    <option value="">Unassigned</option>
+                    {salesUsers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-4 py-3">
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[l.status]}`}
                   >
@@ -111,23 +162,42 @@ export default function LeadsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <select
-                    value={l.status}
-                    onChange={(e) => setStatus(l.id, e.target.value)}
-                    className="rounded border border-slate-300 px-2 py-1 text-xs"
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                  {l.status === 'CONVERTED' && l.customerId ? (
+                    <Link
+                      href={`/portal/customers/${l.customerId}`}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      {l.customer?.customerNo ?? 'View customer'}
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={l.status}
+                        onChange={(e) => setStatus(l.id, e.target.value)}
+                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                      >
+                        {STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                      {l.phone && l.name && l.status !== 'LOST' && (
+                        <button
+                          onClick={() => convert(l)}
+                          className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                        >
+                          Convert
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
             {leads.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   No leads yet.
                 </td>
               </tr>

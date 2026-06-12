@@ -38,6 +38,13 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t anthar-backend ./backend
+      - run: docker build -t anthar-web ./web
+
   android:
     runs-on: ubuntu-latest
     defaults:

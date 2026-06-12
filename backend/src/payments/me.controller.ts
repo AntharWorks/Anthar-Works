@@ -1,11 +1,32 @@
-import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { Type } from 'class-transformer';
+import { IsDate, IsOptional, IsString } from 'class-validator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { TicketsService } from '../tickets/tickets.service';
 import { CheckoutService } from './checkout.service';
+
+class SelectSlotDto {
+  @Type(() => Date)
+  @IsDate()
+  slotDate: Date;
+
+  @IsOptional()
+  @IsString()
+  slotWindow?: string;
+}
 
 // Customer self-service: powers the web renewal flow and the app's
 // Live Dashboard later (same endpoints, common database).
@@ -50,5 +71,11 @@ export class MeController {
   @Get('tickets/:id')
   myTicket(@Param('id') id: string, @Req() req: any) {
     return this.tickets.findOneForUser(req.user.sub, id);
+  }
+
+  // FRD: customer picks the installation date & time post-delivery.
+  @Patch('tickets/:id/slot')
+  selectSlot(@Param('id') id: string, @Body() dto: SelectSlotDto, @Req() req: any) {
+    return this.tickets.selectSlotForUser(req.user.sub, id, dto);
   }
 }

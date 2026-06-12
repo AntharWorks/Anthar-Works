@@ -158,6 +158,12 @@ export class TicketsController {
     return this.tickets.findOne(id);
   }
 
+  @Get(':id/suggest-technicians')
+  @Roles(Role.ADMIN, Role.BACKEND)
+  suggestTechnicians(@Param('id') id: string) {
+    return this.tickets.suggestTechnicians(id);
+  }
+
   @Patch(':id/assign')
   @Roles(Role.ADMIN, Role.BACKEND)
   assign(@Param('id') id: string, @Body() dto: AssignDto, @Req() req: any) {
