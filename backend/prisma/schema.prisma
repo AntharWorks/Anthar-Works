@@ -1,0 +1,476 @@
+// Anthar Works — single common database for web portal + Android app (all personas).
+// See docs/DEVELOPMENT_PLAN.md §3 for the model rationale.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Identity & org ─────────────────────────
+
+enum Role {
+  ADMIN
+  BACKEND
+  TECHNICIAN
+  SALES
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model User {
+  id        String     @id @default(cuid())
+  phone     String     @unique // login id for every persona (OTP via SMS)
+  name      String
+  role      Role
+  status    UserStatus @default(ACTIVE)
+  fcmToken  String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  customer            Customer?
+  assignedTickets     Ticket[]            @relation("TechnicianTickets")
+  createdTickets      Ticket[]            @relation("CreatedTickets")
+  ticketEvents        TicketEvent[]
+  backendTechnicians  BackendTechnician[] @relation("BackendUser")
+  technicianBackends  BackendTechnician[] @relation("TechnicianUser")
+  backendAllocations  BackendAllocation[]
+  assignedLeads       Lead[]
+  salesTargets        SalesTarget[]
+  createdPlans        Plan[]
+
+  @@index([role, status])
+  @@map("users")
+}
+
+model OtpAttempt {
+  id        String   @id @default(cuid())
+  phone     String
+  codeHash  String
+  channel   String   @default("SMS") // SMS | WHATSAPP
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone, createdAt])
+  @@map("otp_attempts")
+}
+
+// Admin assigns a set of technicians to each backend staff member for tracking.
+model BackendTechnician {
+  id           String @id @default(cuid())
+  backendId    String
+  technicianId String
+  backend      User   @relation("BackendUser", fields: [backendId], references: [id])
+  technician   User   @relation("TechnicianUser", fields: [technicianId], references: [id])
+
+  @@unique([backendId, technicianId])
+  @@map("backend_technician_map")
+}
+
+// Customer data is allocated to backend staff by pincode or product model.
+model BackendAllocation {
+  id        String   @id @default(cuid())
+  backendId String
+  pincode   String?
+  productId String?
+  backend   User     @relation(fields: [backendId], references: [id])
+  product   Product? @relation(fields: [productId], references: [id])
+
+  @@index([pincode])
+  @@map("backend_allocations")
+}
+
+// ───────────────────────── Customers & products ─────────────────────────
+
+model Customer {
+  id         String   @id @default(cuid())
+  customerNo String   @unique // human-readable unique id, e.g. AW-000123
+  userId     String   @unique
+  address    String?
+  pincode    String?
+  city       String?
+  latitude   Float?
+  longitude  Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user          User             @relation(fields: [userId], references: [id])
+  devices       CustomerDevice[]
+  subscriptions Subscription[]
+  orders        Order[]
+  tickets       Ticket[]
+  leads         Lead[]
+
+  @@index([pincode])
+  @@map("customers")
+}
+
+model Product {
+  id        String   @id @default(cuid())
+  brand     String
+  model     String
+  variant   String?
+  type      String   @default("PURIFIER")
+  priceInr  Decimal  @db.Decimal(10, 2)
+  images    String[]
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  devices            CustomerDevice[]
+  orderItems         OrderItem[]
+  leads              Lead[]
+  backendAllocations BackendAllocation[]
+
+  @@index([brand, model])
+  @@map("products")
+}
+
+enum BillingPeriod {
+  MONTHLY
+  QUARTERLY
+  HALF_YEARLY
+  YEARLY
+}
+
+model Plan {
+  id            String        @id @default(cuid())
+  name          String
+  priceInr      Decimal       @db.Decimal(10, 2)
+  billingPeriod BillingPeriod
+  isCustom      Boolean       @default(false) // Admin "Custom Plans" for high-volume users
+  createdById   String?
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+
+  createdBy     User?          @relation(fields: [createdById], references: [id])
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  STOPPED
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  customerId             String
+  planId                 String
+  status                 SubscriptionStatus @default(ACTIVE)
+  startDate              DateTime
+  nextRenewalAt          DateTime?
+  razorpaySubscriptionId String?            @unique
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  plan     Plan     @relation(fields: [planId], references: [id])
+
+  @@index([status, nextRenewalAt])
+  @@map("subscriptions")
+}
+
+enum WarrantyType {
+  RESIDENTIAL
+  COMMERCIAL
+}
+
+// Powers the customer Live Dashboard and 1-year warranty tracking.
+model CustomerDevice {
+  id             String       @id @default(cuid())
+  customerId     String
+  productId      String
+  purchaseDate   DateTime
+  warrantyType   WarrantyType
+  warrantyExpiry DateTime
+  createdAt      DateTime     @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@index([warrantyExpiry])
+  @@map("customer_devices")
+}
+
+// ───────────────────────── Commerce ─────────────────────────
+
+enum OrderType {
+  SUBSCRIPTION
+  PRODUCT
+  RENEWAL
+}
+
+enum OrderStatus {
+  CREATED
+  PAID
+  FAILED
+  DELIVERED
+  CANCELLED
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNo         String      @unique // unique Order ID per FRD
+  customerId      String
+  type            OrderType
+  amountInr       Decimal     @db.Decimal(10, 2)
+  status          OrderStatus @default(CREATED)
+  razorpayOrderId String?     @unique
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  customer Customer    @relation(fields: [customerId], references: [id])
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  qty       Int     @default(1)
+  priceInr  Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+enum PaymentStatus {
+  PENDING
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+// Payment status is only ever set from signature-verified Razorpay webhooks.
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String
+  razorpayPaymentId String?       @unique
+  signature         String?
+  amountInr         Decimal       @db.Decimal(10, 2)
+  status            PaymentStatus @default(PENDING)
+  webhookPayload    Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("payments")
+}
+
+enum LeadSource {
+  APP_TAP
+  SALES
+  REFERRAL
+  BUYBACK
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  LOST
+}
+
+// App product-tap lead capture + Sales temp-id flow. tempId becomes a
+// real customerNo when the backend team confirms the sale.
+model Lead {
+  id              String     @id @default(cuid())
+  tempId          String     @unique
+  source          LeadSource
+  name            String?
+  phone           String?
+  location        String?
+  interestProduct String?
+  assignedSalesId String?
+  customerId      String?
+  status          LeadStatus @default(NEW)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  product       Product?  @relation(fields: [interestProduct], references: [id])
+  assignedSales User?     @relation(fields: [assignedSalesId], references: [id])
+  customer      Customer? @relation(fields: [customerId], references: [id])
+
+  @@index([status, assignedSalesId])
+  @@map("leads")
+}
+
+model SalesTarget {
+  id          String   @id @default(cuid())
+  salesUserId String
+  periodStart DateTime
+  periodEnd   DateTime
+  targetInr   Decimal  @db.Decimal(12, 2)
+  achievedInr Decimal  @default(0) @db.Decimal(12, 2)
+
+  salesUser User @relation(fields: [salesUserId], references: [id])
+
+  @@unique([salesUserId, periodStart])
+  @@map("sales_targets")
+}
+
+// ───────────────────────── Service operations ─────────────────────────
+
+enum TicketType {
+  SERVICE
+  INSTALLATION
+  COMPLAINT
+  DELIVERY
+}
+
+// State machine enforced in TicketsService:
+// CREATED → ASSIGNED → ACCEPTED/REJECTED → IN_TRANSIT → IN_PROGRESS → COMPLETED | PENDING | CANCELLED
+enum TicketStatus {
+  CREATED
+  ASSIGNED
+  ACCEPTED
+  REJECTED
+  IN_TRANSIT
+  IN_PROGRESS
+  COMPLETED
+  PENDING
+  CANCELLED
+}
+
+model Ticket {
+  id                   String       @id @default(cuid())
+  ticketNo             String       @unique
+  customerId           String
+  type                 TicketType
+  status               TicketStatus @default(CREATED)
+  priority             Int          @default(3)
+  slaDueAt             DateTime?
+  assignedTechnicianId String?
+  slotDate             DateTime?
+  slotWindow           String?
+  createdById          String
+  cancellationReason   String?
+  rejectionReason      String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  customer           Customer          @relation(fields: [customerId], references: [id])
+  assignedTechnician User?             @relation("TechnicianTickets", fields: [assignedTechnicianId], references: [id])
+  createdBy          User              @relation("CreatedTickets", fields: [createdById], references: [id])
+  events             TicketEvent[]
+  spareUsage         TicketSpareUsage[]
+  media              TicketMedia[]
+
+  @@index([status, slaDueAt])
+  @@index([assignedTechnicianId, status])
+  @@map("tickets")
+}
+
+// Full audit trail: every status change, remark, and slot postponement.
+model TicketEvent {
+  id         String        @id @default(cuid())
+  ticketId   String
+  fromStatus TicketStatus?
+  toStatus   TicketStatus?
+  actorId    String
+  remarks    String?
+  createdAt  DateTime      @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  actor  User   @relation(fields: [actorId], references: [id])
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_events")
+}
+
+model SparePart {
+  id    String @id @default(cuid())
+  sku   String @unique
+  name  String
+  stock Int    @default(0)
+
+  usage TicketSpareUsage[]
+
+  @@map("spare_parts")
+}
+
+model TicketSpareUsage {
+  id       String @id @default(cuid())
+  ticketId String
+  partId   String
+  qty      Int    @default(1)
+
+  ticket Ticket    @relation(fields: [ticketId], references: [id])
+  part   SparePart @relation(fields: [partId], references: [id])
+
+  @@unique([ticketId, partId])
+  @@map("ticket_spare_usage")
+}
+
+enum MediaPhase {
+  BEFORE
+  AFTER
+}
+
+// Camera-only capture: app blocks gallery; server requires GPS coordinates.
+model TicketMedia {
+  id         String     @id @default(cuid())
+  ticketId   String
+  phase      MediaPhase
+  s3Key      String
+  latitude   Float
+  longitude  Float
+  capturedAt DateTime
+  deviceTime DateTime?
+  createdAt  DateTime   @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId, phase])
+  @@map("ticket_media")
+}
+
+// ───────────────────────── Messaging ─────────────────────────
+
+enum NotificationChannel {
+  WHATSAPP
+  SMS
+  PUSH
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+// Auditable delivery log for every FRD notification type.
+model NotificationLog {
+  id                String              @id @default(cuid())
+  recipient         String
+  channel           NotificationChannel
+  template          String
+  payload           Json?
+  status            NotificationStatus  @default(QUEUED)
+  providerMessageId String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([recipient, createdAt])
+  @@map("notifications_log")
+}
