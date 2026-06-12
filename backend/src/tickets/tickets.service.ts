@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { TicketStatus, TicketType } from '@prisma/client';
+import { Prisma, TicketStatus, TicketType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { canTransition, requiresReason } from './ticket-state-machine';
 
@@ -20,7 +20,10 @@ export class TicketsService {
     customerId: string;
     type: TicketType;
     createdById: string;
+    priority?: number;
     slaDueAt?: Date;
+    slotDate?: Date;
+    slotWindow?: string;
   }) {
     const ticketNo = await this.nextTicketNo();
     const ticket = await this.prisma.ticket.create({
@@ -36,15 +39,98 @@ export class TicketsService {
     return ticket;
   }
 
+  async findAll(params: {
+    status?: TicketStatus;
+    technicianId?: string;
+    pincode?: string;
+    page?: number;
+  }) {
+    const page = Math.max(1, params.page ?? 1);
+    const take = 20;
+    const where: Prisma.TicketWhereInput = {
+      ...(params.status ? { status: params.status } : {}),
+      ...(params.technicianId
+        ? { assignedTechnicianId: params.technicianId }
+        : {}),
+      ...(params.pincode ? { customer: { pincode: params.pincode } } : {}),
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.ticket.findMany({
+        where,
+        include: {
+          customer: { include: { user: true } },
+          assignedTechnician: true,
+        },
+        orderBy: [
+          { slaDueAt: { sort: 'asc', nulls: 'last' } },
+          { createdAt: 'desc' },
+        ],
+        skip: (page - 1) * take,
+        take,
+      }),
+      this.prisma.ticket.count({ where }),
+    ]);
+    return { items, total, page, pageSize: take };
+  }
+
+  async findOne(id: string) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id },
+      include: {
+        customer: { include: { user: true } },
+        assignedTechnician: true,
+        createdBy: true,
+        events: { include: { actor: true }, orderBy: { createdAt: 'asc' } },
+        spareUsage: { include: { part: true } },
+        media: true,
+      },
+    });
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+    return ticket;
+  }
+
   async assign(
     ticketId: string,
     technicianId: string,
     actorId: string,
-    slot?: { slotDate: Date; slotWindow: string },
+    slot?: { slotDate?: Date; slotWindow?: string },
   ) {
     return this.transition(ticketId, TicketStatus.ASSIGNED, actorId, {
-      extra: { assignedTechnicianId: technicianId, ...slot },
+      remarks: 'Assigned to technician',
+      extra: { assignedTechnicianId: technicianId, ...(slot ?? {}) },
     });
+  }
+
+  // Customer slot postponement with remarks, per FRD 1.3.
+  async postponeSlot(
+    ticketId: string,
+    actorId: string,
+    slot: { slotDate: Date; slotWindow?: string; remarks?: string },
+  ) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+    });
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.ticket.update({
+        where: { id: ticketId },
+        data: { slotDate: slot.slotDate, slotWindow: slot.slotWindow },
+      }),
+      this.prisma.ticketEvent.create({
+        data: {
+          ticketId,
+          actorId,
+          remarks: `Slot postponed to ${slot.slotDate.toISOString()}${
+            slot.slotWindow ? ` (${slot.slotWindow})` : ''
+          }${slot.remarks ? ` — ${slot.remarks}` : ''}`,
+        },
+      }),
+    ]);
+    return updated;
   }
 
   async transition(
@@ -100,7 +186,7 @@ export class TicketsService {
         status: { notIn: [TicketStatus.COMPLETED, TicketStatus.CANCELLED] },
       },
       include: { customer: { include: { user: true } } },
-      orderBy: { slaDueAt: 'asc' },
+      orderBy: { slaDueAt: { sort: 'asc', nulls: 'last' } },
     });
   }
 }
