@@ -1,0 +1,32 @@
+# Node
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+npm-debug.log*
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+*.keystore
+google-services.json
+
+# Android / Gradle
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.apk
+*.aab
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Data
+minio-data/
+postgres-data/
