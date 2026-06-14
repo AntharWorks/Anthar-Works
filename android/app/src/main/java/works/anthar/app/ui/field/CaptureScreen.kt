@@ -148,7 +148,7 @@ fun CaptureScreen(
                             providerFuture.addListener({
                                 val provider = providerFuture.get()
                                 val preview = androidx.camera.core.Preview.Builder().build()
-                                preview.surfaceProvider = previewView.surfaceProvider
+                                preview.setSurfaceProvider(previewView.surfaceProvider)
                                 provider.unbindAll()
                                 provider.bindToLifecycle(
                                     lifecycleOwner,
