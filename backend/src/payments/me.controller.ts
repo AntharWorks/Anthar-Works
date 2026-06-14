@@ -54,6 +54,7 @@ export class MeController {
     const customer = await this.prisma.customer.findFirstOrThrow({
       where: { userId: req.user.sub },
       include: {
+        user: { select: { name: true } },
         devices: { include: { product: true } },
         subscriptions: { include: { plan: true }, orderBy: { createdAt: 'desc' } },
         tickets: { orderBy: { createdAt: 'desc' }, take: 10 },

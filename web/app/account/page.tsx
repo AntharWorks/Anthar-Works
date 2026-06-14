@@ -348,7 +348,7 @@ export default function AccountPage() {
       {step === 'home' && data && (
         <div className="mt-6 space-y-6">
           <p className="text-slate-600">
-            Welcome back, <span className="font-semibold">{data.user.name}</span>{' '}
+            Welcome back, <span className="font-semibold">{data.user?.name ?? 'there'}</span>{' '}
             <span className="font-mono text-sm text-slate-400">{data.customerNo}</span>
           </p>
 
