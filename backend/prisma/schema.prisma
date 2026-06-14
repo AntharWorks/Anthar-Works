@@ -10,6 +10,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ───────────────────────── App configuration ─────────────────────────
+
+// Single-row admin-controlled settings. onlinePaymentsEnabled gates Razorpay
+// checkout; when off (or keys absent) orders are taken offline and staff mark
+// them paid. Seeded from the PAYMENTS_ENABLED env var on first read.
+model AppConfig {
+  id                    String   @id @default("singleton")
+  onlinePaymentsEnabled Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+
+  @@map("app_config")
+}
+
 // ───────────────────────── Identity & org ─────────────────────────
 
 enum Role {

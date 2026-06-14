@@ -255,8 +255,10 @@ for the full list with comments. Grouped:
 | Content | `FAQ_VIDEO_URL` |
 
 Without provider keys the system still runs: messages are logged to the console and
-`notifications_log` instead of being sent (dev/test mode). Razorpay keys are **required** in
-production — the API refuses to start without them. The web app needs only `API_URL` (the backend's
+`notifications_log` instead of being sent (dev/test mode). Razorpay keys are **optional to boot**:
+without them (or with the **Portal → Settings** payments toggle off) the storefront takes orders
+offline and staff mark them paid — add the keys and flip the toggle on to accept online payments.
+The web app needs only `API_URL` (the backend's
 public URL).
 
 ## Deployment

@@ -17,6 +17,7 @@ const NAV = [
   { href: '/portal/allocations', label: 'Allocations' },
   { href: '/portal/reports', label: 'Reports' },
   { href: '/portal/notifications', label: 'Notifications' },
+  { href: '/portal/settings', label: 'Settings', adminOnly: true },
 ];
 
 export default function PortalLayout({
@@ -54,7 +55,7 @@ export default function PortalLayout({
           <p className="text-xs text-slate-500">Staff Portal</p>
         </div>
         <nav className="flex-1 space-y-1 p-3">
-          {NAV.map((item) => {
+          {NAV.filter((item) => !item.adminOnly || user?.role === 'ADMIN').map((item) => {
             const active =
               item.href === '/portal'
                 ? pathname === '/portal'

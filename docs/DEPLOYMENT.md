@@ -17,7 +17,9 @@ fronted by a TLS reverse proxy (Caddy, nginx, or Cloudflare Tunnel).
 
 Without provider keys the system still runs: messages are logged to the server console
 and `notifications_log` instead of being sent (dev/test mode). Razorpay keys are
-**required** in production — the API refuses to start without them.
+**optional to boot**: with the keys absent (or the admin **Portal → Settings**
+payments toggle off) customers place orders that staff mark paid in the portal.
+Add the keys and turn the toggle on to take online payments.
 
 ## 2. First deploy
 

@@ -1,13 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomBytes } from 'crypto';
 import Razorpay = require('razorpay');
 
 export type GatewayOrder = {
   razorpayOrderId: string;
-  keyId: string | null;
-  /** True when running without Razorpay keys (local/dev only). */
-  testMode: boolean;
+  keyId: string;
 };
 
 @Injectable()
@@ -20,11 +17,12 @@ export class RazorpayService {
     const keySecret = this.config.get<string>('RAZORPAY_KEY_SECRET');
     if (keyId && keySecret) {
       this.client = new Razorpay({ key_id: keyId, key_secret: keySecret });
-    } else if (this.config.get('NODE_ENV') === 'production') {
-      throw new Error('RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET are required in production');
     } else {
+      // No keys: online checkout is unavailable and orders are taken offline
+      // (staff mark them paid). The app still boots — see SettingsService and
+      // the admin payments toggle.
       this.logger.warn(
-        'Razorpay keys not configured — checkout runs in simulated test mode',
+        'Razorpay keys not configured — online payments are disabled; orders are taken offline',
       );
     }
   }
@@ -41,13 +39,10 @@ export class RazorpayService {
     return this.config.get<string>('RAZORPAY_WEBHOOK_SECRET', '');
   }
 
+  // Only called when payments are live (client is configured).
   async createOrder(amountInr: number, receipt: string): Promise<GatewayOrder> {
     if (!this.client) {
-      return {
-        razorpayOrderId: `order_dev_${randomBytes(8).toString('hex')}`,
-        keyId: null,
-        testMode: true,
-      };
+      throw new Error('Razorpay is not configured');
     }
     const order = await this.client.orders.create({
       amount: Math.round(amountInr * 100), // paise
@@ -57,7 +52,6 @@ export class RazorpayService {
     return {
       razorpayOrderId: order.id,
       keyId: this.config.get<string>('RAZORPAY_KEY_ID')!,
-      testMode: false,
     };
   }
 }

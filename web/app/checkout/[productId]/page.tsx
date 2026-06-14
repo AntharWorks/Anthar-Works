@@ -18,7 +18,8 @@ type CheckoutResponse = {
   orderNo: string;
   amountInr: number;
   customerNo: string;
-  razorpay: { razorpayOrderId: string; keyId: string | null; testMode: boolean };
+  mode: 'online' | 'offline';
+  razorpay?: { razorpayOrderId: string; keyId: string };
 };
 
 declare global {
@@ -32,22 +33,28 @@ export default function CheckoutPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [qty, setQty] = useState(1);
   const [form, setForm] = useState({ name: '', phone: '', address: '', pincode: '', city: '' });
-  const [pending, setPending] = useState<CheckoutResponse | null>(null);
   const [paid, setPaid] = useState<{ orderNo: string } | null>(null);
+  const [placed, setPlaced] = useState<{ orderNo: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [paymentsLive, setPaymentsLive] = useState(true);
 
   useEffect(() => {
     fetch('/api/v1/products')
       .then((r) => r.json())
       .then((all: Product[]) => setProduct(all.find((p) => p.id === productId) ?? null))
       .catch(() => setError('Could not load product'));
+    fetch('/api/v1/settings/public')
+      .then((r) => r.json())
+      .then((s: { paymentsLive: boolean }) => setPaymentsLive(s.paymentsLive))
+      .catch(() => {});
   }, [productId]);
 
   async function confirmPayment(
     order: CheckoutResponse,
     payment: { razorpayPaymentId: string; razorpaySignature: string },
   ) {
+    if (!order.razorpay) return;
     const res = await fetch(`/api/v1/checkout/${order.orderId}/confirm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -59,7 +66,6 @@ export default function CheckoutPage() {
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message ?? 'Payment confirmation failed');
     setPaid({ orderNo: data.orderNo });
-    setPending(null);
   }
 
   async function startCheckout(e: FormEvent) {
@@ -81,8 +87,10 @@ export default function CheckoutPage() {
       const order: CheckoutResponse & { message?: string } = await res.json();
       if (!res.ok) throw new Error((order as any).message ?? 'Checkout failed');
 
-      if (order.razorpay.testMode) {
-        setPending(order);
+      // Offline mode: online payments are off — the order is recorded and our
+      // team collects payment and confirms installation.
+      if (order.mode === 'offline' || !order.razorpay) {
+        setPlaced({ orderNo: order.orderNo });
         return;
       }
 
@@ -121,6 +129,23 @@ export default function CheckoutPage() {
           Order <span className="font-mono font-semibold">{paid.orderNo}</span> is
           confirmed. You&apos;ll receive delivery and installation updates on
           WhatsApp & SMS.
+        </p>
+        <Link href="/products" className="mt-6 inline-block text-blue-600 hover:underline">
+          Continue shopping
+        </Link>
+      </main>
+    );
+  }
+
+  if (placed) {
+    return (
+      <main className="mx-auto max-w-lg px-6 py-24 text-center">
+        <div className="text-5xl">📝</div>
+        <h1 className="mt-4 text-2xl font-bold">Order placed</h1>
+        <p className="mt-2 text-slate-600">
+          Your order <span className="font-mono font-semibold">{placed.orderNo}</span> is
+          recorded. Our team will contact you shortly to collect payment and
+          confirm your installation. You&apos;ll get updates on WhatsApp & SMS.
         </p>
         <Link href="/products" className="mt-6 inline-block text-blue-600 hover:underline">
           Continue shopping
@@ -170,28 +195,7 @@ export default function CheckoutPage() {
         <p className="mt-4 text-slate-500">Loading product…</p>
       )}
 
-      {pending ? (
-        <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-5">
-          <p className="font-semibold text-amber-800">Test mode</p>
-          <p className="mt-1 text-sm text-amber-700">
-            Razorpay keys are not configured on this server, so order{' '}
-            <span className="font-mono">{pending.orderNo}</span> was created in
-            simulated mode.
-          </p>
-          <button
-            onClick={() =>
-              confirmPayment(pending, {
-                razorpayPaymentId: `pay_dev_${Date.now()}`,
-                razorpaySignature: 'dev',
-              }).catch((err) => setError(err.message))
-            }
-            className="mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700"
-          >
-            Simulate successful payment
-          </button>
-        </div>
-      ) : (
-        <form onSubmit={startCheckout} className="mt-6 space-y-3">
+      <form onSubmit={startCheckout} className="mt-6 space-y-3">
           <input
             placeholder="Full name"
             value={form.name}
@@ -236,11 +240,20 @@ export default function CheckoutPage() {
             disabled={busy || !product}
             className="w-full rounded-lg bg-blue-600 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {busy ? 'Creating order…' : 'Pay with Razorpay'}
+            {busy
+              ? 'Creating order…'
+              : paymentsLive
+                ? 'Pay with Razorpay'
+                : 'Place order'}
           </button>
+          {!paymentsLive && (
+            <p className="text-xs text-slate-500">
+              Online payment isn&apos;t enabled yet — place your order and our
+              team will contact you to collect payment.
+            </p>
+          )}
           {error && <p className="text-sm text-rose-600">{error}</p>}
         </form>
-      )}
     </main>
   );
 }
