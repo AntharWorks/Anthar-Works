@@ -25,10 +25,10 @@ type SalesUser = { id: string; name: string };
 const STATUSES = ['NEW', 'CONTACTED', 'CONVERTED', 'LOST'];
 
 const STATUS_BADGE: Record<string, string> = {
-  NEW: 'bg-blue-100 text-blue-700',
-  CONTACTED: 'bg-amber-100 text-amber-700',
-  CONVERTED: 'bg-emerald-100 text-emerald-700',
-  LOST: 'bg-slate-200 text-slate-500',
+  NEW: 'bg-brand-50 text-brand-700',
+  CONTACTED: 'bg-amber-50 text-amber-700',
+  CONVERTED: 'bg-emerald-50 text-emerald-700',
+  LOST: 'bg-slate-100 text-slate-600',
 };
 
 export default function LeadsPage() {
@@ -87,8 +87,8 @@ export default function LeadsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Leads</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="page-title">Leads</h1>
+      <p className="page-subtitle">
         Captured from product taps, referrals, buy-back interest and sales
         executives. New leads trigger automatic WhatsApp follow-ups.
       </p>
@@ -96,7 +96,7 @@ export default function LeadsPage() {
       <select
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
-        className="mt-4 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        className="input mt-4"
       >
         <option value="">All statuses</option>
         {STATUSES.map((s) => (
@@ -108,8 +108,8 @@ export default function LeadsPage() {
 
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="card mt-4 overflow-hidden">
+        <table className="table-base w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr>
               <th className="px-4 py-3">Lead ID</th>
@@ -130,7 +130,7 @@ export default function LeadsPage() {
                 <td className="px-4 py-3">{l.name ?? '—'}</td>
                 <td className="px-4 py-3">
                   {l.phone ? (
-                    <a href={`tel:${l.phone}`} className="text-blue-600 hover:underline">
+                    <a href={`tel:${l.phone}`} className="text-brand-700 hover:text-brand-800">
                       {l.phone}
                     </a>
                   ) : (
@@ -144,7 +144,7 @@ export default function LeadsPage() {
                   <select
                     value={l.assignedSales?.id ?? ''}
                     onChange={(e) => e.target.value && assignSales(l.id, e.target.value)}
-                    className="rounded border border-slate-300 px-2 py-1 text-xs"
+                    className="input text-xs"
                   >
                     <option value="">Unassigned</option>
                     {salesUsers.map((s) => (
@@ -155,9 +155,7 @@ export default function LeadsPage() {
                   </select>
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[l.status]}`}
-                  >
+                  <span className={`badge ${STATUS_BADGE[l.status]}`}>
                     {l.status}
                   </span>
                 </td>
@@ -165,7 +163,7 @@ export default function LeadsPage() {
                   {l.status === 'CONVERTED' && l.customerId ? (
                     <Link
                       href={`/portal/customers/${l.customerId}`}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-brand-700 hover:text-brand-800"
                     >
                       {l.customer?.customerNo ?? 'View customer'}
                     </Link>
@@ -174,7 +172,7 @@ export default function LeadsPage() {
                       <select
                         value={l.status}
                         onChange={(e) => setStatus(l.id, e.target.value)}
-                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                        className="input text-xs"
                       >
                         {STATUSES.map((s) => (
                           <option key={s} value={s}>
@@ -185,7 +183,7 @@ export default function LeadsPage() {
                       {l.phone && l.name && l.status !== 'LOST' && (
                         <button
                           onClick={() => convert(l)}
-                          className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                          className="btn btn-accent btn-sm"
                         >
                           Convert
                         </button>

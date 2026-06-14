@@ -1,3 +1,90 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-slate-50 font-sans text-slate-900;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-brand-600 text-white shadow-sm hover:bg-brand-700 focus-visible:ring-brand-500;
+  }
+  .btn-accent {
+    @apply bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-emerald-500;
+  }
+  .btn-outline {
+    @apply border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50 focus-visible:ring-slate-400;
+  }
+  .btn-ghost {
+    @apply text-slate-600 hover:bg-slate-100 focus-visible:ring-slate-300;
+  }
+  .btn-danger {
+    @apply bg-rose-600 text-white shadow-sm hover:bg-rose-700 focus-visible:ring-rose-400;
+  }
+  .btn-sm {
+    @apply rounded-lg px-3 py-1.5 text-xs;
+  }
+  .btn-lg {
+    @apply rounded-xl px-5 py-3 text-base;
+  }
+
+  /* Surfaces */
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-card;
+  }
+  .card-hover {
+    @apply transition hover:-translate-y-0.5 hover:shadow-soft;
+  }
+
+  /* Forms */
+  .input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-slate-700;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+
+  /* Page headings */
+  .page-title {
+    @apply font-display text-2xl font-bold tracking-tight text-slate-900;
+  }
+  .page-subtitle {
+    @apply mt-1 text-sm text-slate-500;
+  }
+
+  /* Data tables */
+  .table-base {
+    @apply w-full text-left text-sm;
+  }
+  .table-base thead th {
+    @apply whitespace-nowrap bg-slate-50/80 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .table-base tbody td {
+    @apply border-t border-slate-100 px-4 py-3 align-middle;
+  }
+  .table-base tbody tr:hover {
+    @apply bg-slate-50/60;
+  }
+}

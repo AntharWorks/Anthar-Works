@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import Script from 'next/script';
 import { FormEvent, useCallback, useState } from 'react';
+import { StoreLayout } from '@/components/store/StoreLayout';
 
 type Subscription = {
   id: string;
@@ -155,13 +155,11 @@ export default function RenewPage() {
   }
 
   return (
-    <main className="mx-auto max-w-lg px-6 py-12">
+    <StoreLayout>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
-      <Link href="/" className="text-sm text-blue-600 hover:underline">
-        ← Home
-      </Link>
-      <h1 className="mt-2 text-2xl font-bold">Renew your subscription</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <div className="mx-auto max-w-lg px-4 py-12 sm:px-6">
+      <h1 className="page-title">Renew your subscription</h1>
+      <p className="page-subtitle mt-1">
         One-click renewal with instant Razorpay payment.
       </p>
 
@@ -173,12 +171,12 @@ export default function RenewPage() {
             maxLength={10}
             inputMode="numeric"
             onChange={(e) => setPhone(e.target.value.trim())}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            className="input"
             required
           />
           <button
             disabled={busy}
-            className="w-full rounded-lg bg-blue-600 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="btn btn-primary w-full"
           >
             {busy ? 'Sending…' : 'Send OTP'}
           </button>
@@ -198,12 +196,12 @@ export default function RenewPage() {
             maxLength={6}
             inputMode="numeric"
             onChange={(e) => setCode(e.target.value.trim())}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 tracking-widest"
+            className="input tracking-widest"
             required
           />
           <button
             disabled={busy}
-            className="w-full rounded-lg bg-blue-600 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="btn btn-primary w-full"
           >
             {busy ? 'Verifying…' : 'Continue'}
           </button>
@@ -218,7 +216,7 @@ export default function RenewPage() {
             </p>
           )}
           {placed && (
-            <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
+            <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-700">
               📝 Renewal requested — order <span className="font-mono">{placed}</span>.
               Our team will contact you to collect payment.
             </p>
@@ -226,7 +224,7 @@ export default function RenewPage() {
           {subs.map((s) => (
             <div
               key={s.id}
-              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4"
+              className="card flex items-center justify-between p-4"
             >
               <div>
                 <p className="font-semibold">{s.plan.name}</p>
@@ -241,7 +239,7 @@ export default function RenewPage() {
               <button
                 disabled={busy}
                 onClick={() => renew(s)}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className="btn btn-accent btn-sm"
               >
                 Renew now
               </button>
@@ -254,6 +252,7 @@ export default function RenewPage() {
       )}
 
       {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
-    </main>
+      </div>
+    </StoreLayout>
   );
 }

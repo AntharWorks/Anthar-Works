@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
+import { DropletMark } from '@/components/Logo';
 import { api, setSession, SessionUser } from '@/lib/api';
 
 export default function LoginPage() {
@@ -55,73 +56,81 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
-      <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow">
-        <h1 className="text-xl font-bold">Anthar Works — Staff Portal</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Sign in with your registered mobile number.
-        </p>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 px-4">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -top-24 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-brand-200/40 blur-3xl" />
+        <div className="absolute bottom-0 right-10 h-72 w-72 rounded-full bg-sky-200/30 blur-3xl" />
+      </div>
 
-        {step === 'phone' ? (
-          <form onSubmit={requestOtp} className="mt-6 space-y-4">
-            <label className="block text-sm font-medium">
-              Mobile number
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.trim())}
-                placeholder="10-digit mobile"
-                inputMode="numeric"
-                maxLength={10}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                required
-              />
-            </label>
-            <button
-              disabled={busy}
-              className="w-full rounded-lg bg-blue-600 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {busy ? 'Sending…' : 'Send OTP'}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={verifyOtp} className="mt-6 space-y-4">
-            <p className="text-sm text-slate-600">
-              OTP sent to <span className="font-medium">{phone}</span>{' '}
-              <button
-                type="button"
-                onClick={() => setStep('phone')}
-                className="text-blue-600 underline"
-              >
-                change
-              </button>
+      <div className="w-full max-w-sm">
+        <div className="card p-8 shadow-soft">
+          <div className="flex flex-col items-center text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-50 to-sky-50">
+              <DropletMark className="h-7 w-7" />
+            </span>
+            <h1 className="mt-4 font-display text-xl font-bold text-slate-900">
+              Anthar Works
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Staff Portal — sign in with your registered mobile number.
             </p>
-            {devOtp && (
-              <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                Dev mode OTP: <span className="font-mono font-bold">{devOtp}</span>
-              </p>
-            )}
-            <label className="block text-sm font-medium">
-              One-time password
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value.trim())}
-                placeholder="6-digit code"
-                inputMode="numeric"
-                maxLength={6}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 tracking-widest"
-                required
-              />
-            </label>
-            <button
-              disabled={busy}
-              className="w-full rounded-lg bg-blue-600 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {busy ? 'Verifying…' : 'Sign in'}
-            </button>
-          </form>
-        )}
+          </div>
 
-        {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
+          {step === 'phone' ? (
+            <form onSubmit={requestOtp} className="mt-6 space-y-4">
+              <div>
+                <label className="label">Mobile number</label>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.trim())}
+                  placeholder="10-digit mobile"
+                  inputMode="numeric"
+                  maxLength={10}
+                  className="input"
+                  required
+                />
+              </div>
+              <button disabled={busy} className="btn btn-primary w-full">
+                {busy ? 'Sending…' : 'Send OTP'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={verifyOtp} className="mt-6 space-y-4">
+              <p className="text-sm text-slate-600">
+                OTP sent to <span className="font-medium">{phone}</span>{' '}
+                <button
+                  type="button"
+                  onClick={() => setStep('phone')}
+                  className="font-medium text-brand-700 hover:text-brand-800"
+                >
+                  change
+                </button>
+              </p>
+              {devOtp && (
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Dev mode OTP: <span className="font-mono font-bold">{devOtp}</span>
+                </p>
+              )}
+              <div>
+                <label className="label">One-time password</label>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.trim())}
+                  placeholder="6-digit code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  className="input tracking-[0.3em]"
+                  required
+                />
+              </div>
+              <button disabled={busy} className="btn btn-primary w-full">
+                {busy ? 'Verifying…' : 'Sign in'}
+              </button>
+            </form>
+          )}
+
+          {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
+        </div>
       </div>
     </main>
   );

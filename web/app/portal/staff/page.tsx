@@ -56,41 +56,41 @@ export default function StaffPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Staff</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="page-title">Staff</h1>
+      <p className="page-subtitle">
         Mobile number is the login ID; staff sign in with an SMS OTP.
       </p>
 
       {isAdmin && (
         <form
           onSubmit={createLogin}
-          className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-5"
+          className="card mt-4 flex flex-wrap items-end gap-3 p-5"
         >
-          <label className="text-sm font-medium">
+          <label className="label">
             Name
             <input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="mt-1 block rounded-lg border border-slate-300 px-3 py-2"
+              className="input mt-1"
               required
             />
           </label>
-          <label className="text-sm font-medium">
+          <label className="label">
             Mobile (login ID)
             <input
               value={form.phone}
               maxLength={10}
               onChange={(e) => setForm({ ...form, phone: e.target.value.trim() })}
-              className="mt-1 block rounded-lg border border-slate-300 px-3 py-2"
+              className="input mt-1"
               required
             />
           </label>
-          <label className="text-sm font-medium">
+          <label className="label">
             Role
             <select
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="mt-1 block rounded-lg border border-slate-300 px-3 py-2"
+              className="input mt-1"
             >
               {STAFF_ROLES.map((r) => (
                 <option key={r} value={r}>
@@ -99,7 +99,7 @@ export default function StaffPage() {
               ))}
             </select>
           </label>
-          <button className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+          <button className="btn btn-primary">
             Create login
           </button>
         </form>
@@ -107,43 +107,43 @@ export default function StaffPage() {
 
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-500">
+      <div className="card mt-4 overflow-hidden">
+        <table className="table-base">
+          <thead>
             <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Mobile</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Status</th>
-              {isAdmin && <th className="px-4 py-3" />}
+              <th>Name</th>
+              <th>Mobile</th>
+              <th>Role</th>
+              <th>Status</th>
+              {isAdmin && <th />}
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} className="border-t border-slate-100">
-                <td className="px-4 py-3 font-medium">{u.name}</td>
-                <td className="px-4 py-3">{u.phone}</td>
-                <td className="px-4 py-3">
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+              <tr key={u.id}>
+                <td className="font-medium">{u.name}</td>
+                <td>{u.phone}</td>
+                <td>
+                  <span className="badge bg-slate-100 text-slate-600">
                     {u.role}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    className={`badge ${
                       u.status === 'ACTIVE'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-rose-100 text-rose-700'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-rose-50 text-rose-700'
                     }`}
                   >
                     {u.status}
                   </span>
                 </td>
                 {isAdmin && (
-                  <td className="px-4 py-3">
+                  <td>
                     <button
                       onClick={() => toggleStatus(u)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-brand-700 hover:text-brand-800"
                     >
                       {u.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
                     </button>

@@ -16,11 +16,11 @@ type OrderRow = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  CREATED: 'bg-slate-100 text-slate-700',
-  PAID: 'bg-emerald-100 text-emerald-700',
-  FAILED: 'bg-rose-100 text-rose-700',
-  DELIVERED: 'bg-blue-100 text-blue-700',
-  CANCELLED: 'bg-slate-200 text-slate-500',
+  CREATED: 'bg-slate-100 text-slate-600',
+  PAID: 'bg-emerald-50 text-emerald-700',
+  FAILED: 'bg-rose-50 text-rose-700',
+  DELIVERED: 'bg-brand-50 text-brand-700',
+  CANCELLED: 'bg-slate-100 text-slate-600',
 };
 
 export default function OrdersPage() {
@@ -78,8 +78,8 @@ export default function OrdersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Orders</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="page-title">Orders</h1>
+      <p className="page-subtitle">
         Every purchase and renewal — schedule deliveries to trigger customer
         notifications.
       </p>
@@ -90,7 +90,7 @@ export default function OrdersPage() {
           setStatus(e.target.value);
           setPage(1);
         }}
-        className="mt-4 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        className="input mt-4"
       >
         <option value="">All statuses</option>
         {Object.keys(STATUS_BADGE).map((s) => (
@@ -102,8 +102,8 @@ export default function OrdersPage() {
 
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="card mt-4 overflow-hidden">
+        <table className="table-base w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr>
               <th className="px-4 py-3">Order</th>
@@ -136,9 +136,7 @@ export default function OrdersPage() {
                 <td className="px-4 py-3">{o.type}</td>
                 <td className="px-4 py-3">₹{Number(o.amountInr).toLocaleString('en-IN')}</td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[o.status]}`}
-                  >
+                  <span className={`badge ${STATUS_BADGE[o.status]}`}>
                     {o.status}
                   </span>
                 </td>
@@ -149,7 +147,7 @@ export default function OrdersPage() {
                   {o.status === 'CREATED' && (
                     <button
                       onClick={() => markPaid(o)}
-                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                      className="btn btn-accent btn-sm"
                     >
                       Mark paid
                     </button>
@@ -157,7 +155,7 @@ export default function OrdersPage() {
                   {o.status === 'PAID' && o.type === 'PRODUCT' && (
                     <button
                       onClick={() => markDelivered(o)}
-                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                      className="btn btn-primary btn-sm"
                     >
                       Schedule delivery
                     </button>
@@ -182,14 +180,14 @@ export default function OrdersPage() {
         <button
           disabled={page <= 1}
           onClick={() => setPage((p) => p - 1)}
-          className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-40"
+          className="btn btn-outline btn-sm disabled:opacity-40"
         >
           Previous
         </button>
         <button
           disabled={page * 20 >= total}
           onClick={() => setPage((p) => p + 1)}
-          className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-40"
+          className="btn btn-outline btn-sm disabled:opacity-40"
         >
           Next
         </button>

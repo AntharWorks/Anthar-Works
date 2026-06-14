@@ -138,19 +138,19 @@ export default function CustomerDetailPage() {
 
   return (
     <div>
-      <Link href="/portal/customers" className="text-sm text-blue-600 hover:underline">
+      <Link href="/portal/customers" className="text-sm text-brand-700 hover:text-brand-800">
         ← All customers
       </Link>
       <div className="mt-2 flex items-baseline gap-3">
-        <h1 className="text-2xl font-bold">{customer.user.name}</h1>
+        <h1 className="page-title">{customer.user.name}</h1>
         <span className="font-mono text-slate-500">{customer.customerNo}</span>
       </div>
-      <p className="mt-1 text-sm text-slate-500">
+      <p className="page-subtitle">
         {customer.user.phone} · {customer.address ?? '—'} · {customer.pincode ?? ''}
       </p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="card p-5">
           <h2 className="font-semibold">Devices & warranty</h2>
           {customer.devices.length === 0 && (
             <p className="mt-2 text-sm text-slate-400">No devices yet.</p>
@@ -173,7 +173,7 @@ export default function CustomerDetailPage() {
             <select
               value={deviceForm.productId}
               onChange={(e) => setDeviceForm({ ...deviceForm, productId: e.target.value })}
-              className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5"
+              className="input flex-1"
               required
             >
               <option value="">Register purchase…</option>
@@ -186,18 +186,18 @@ export default function CustomerDetailPage() {
             <select
               value={deviceForm.warrantyType}
               onChange={(e) => setDeviceForm({ ...deviceForm, warrantyType: e.target.value })}
-              className="rounded-lg border border-slate-300 px-2 py-1.5"
+              className="input w-auto"
             >
               <option value="RESIDENTIAL">Residential</option>
               <option value="COMMERCIAL">Commercial</option>
             </select>
-            <button className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700">
+            <button className="btn btn-primary btn-sm">
               Add
             </button>
           </form>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="card p-5">
           <h2 className="font-semibold">Subscriptions</h2>
           {customer.subscriptions.length === 0 && (
             <p className="mt-2 text-sm text-slate-400">No subscriptions.</p>
@@ -214,10 +214,10 @@ export default function CustomerDetailPage() {
                 <select
                   value={s.status}
                   onChange={(e) => setSubStatus(s.id, e.target.value)}
-                  className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${
+                  className={`badge border-0 ${
                     s.status === 'ACTIVE'
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-slate-200 text-slate-600'
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'bg-slate-100 text-slate-600'
                   }`}
                 >
                   {SUB_STATUSES.map((st) => (
@@ -233,7 +233,7 @@ export default function CustomerDetailPage() {
             <select
               value={planId}
               onChange={(e) => setPlanId(e.target.value)}
-              className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5"
+              className="input flex-1"
               required
             >
               <option value="">Start subscription…</option>
@@ -243,21 +243,21 @@ export default function CustomerDetailPage() {
                 </option>
               ))}
             </select>
-            <button className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700">
+            <button className="btn btn-primary btn-sm">
               Start
             </button>
           </form>
         </section>
       </div>
 
-      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
+      <section className="card mt-6 p-5">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Service tickets</h2>
           <form onSubmit={createTicket} className="flex items-center gap-2 text-sm">
             <select
               value={ticketForm.type}
               onChange={(e) => setTicketForm({ ...ticketForm, type: e.target.value })}
-              className="rounded-lg border border-slate-300 px-2 py-1.5"
+              className="input w-auto"
             >
               {TICKET_TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -270,14 +270,14 @@ export default function CustomerDetailPage() {
               <input
                 value={ticketForm.slaHours}
                 onChange={(e) => setTicketForm({ ...ticketForm, slaHours: e.target.value })}
-                className="w-14 rounded-lg border border-slate-300 px-2 py-1.5"
+                className="input w-14"
                 inputMode="numeric"
               />
               h
             </label>
             <button
               disabled={creating}
-              className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="btn btn-primary btn-sm"
             >
               + New ticket
             </button>
@@ -291,9 +291,9 @@ export default function CustomerDetailPage() {
                 href={`/portal/tickets/${t.id}`}
                 className="flex items-center justify-between rounded-lg bg-slate-50 p-3 hover:bg-slate-100"
               >
-                <span className="font-mono text-blue-600">{t.ticketNo}</span>
+                <span className="font-mono text-brand-700">{t.ticketNo}</span>
                 <span>{t.type}</span>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[t.status]}`}>
+                <span className={`badge ${STATUS_BADGE[t.status]}`}>
                   {t.status}
                 </span>
                 <span className="text-slate-400">{formatDateTime(t.createdAt)}</span>

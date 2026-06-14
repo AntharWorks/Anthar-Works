@@ -174,20 +174,20 @@ export default function TicketDetailPage() {
 
   return (
     <div>
-      <Link href="/portal/tickets" className="text-sm text-blue-600 hover:underline">
+      <Link href="/portal/tickets" className="text-sm text-brand-700 hover:text-brand-800">
         ← All tickets
       </Link>
 
       <div className="mt-2 flex flex-wrap items-center gap-3">
-        <h1 className="font-mono text-2xl font-bold">{ticket.ticketNo}</h1>
-        <span className={`rounded-full px-3 py-1 text-sm font-medium ${STATUS_BADGE[ticket.status]}`}>
+        <h1 className="page-title font-mono">{ticket.ticketNo}</h1>
+        <span className={`badge ${STATUS_BADGE[ticket.status]}`}>
           {ticket.status.replace('_', ' ')}
         </span>
-        <span className={`rounded-full px-3 py-1 text-sm font-medium ${sla.className}`}>
+        <span className={`badge ${sla.className}`}>
           {sla.label}
         </span>
       </div>
-      <p className="mt-1 text-sm text-slate-500">
+      <p className="page-subtitle">
         {ticket.type} · created {formatDateTime(ticket.createdAt)} by {ticket.createdBy.name} · SLA{' '}
         {formatDateTime(ticket.slaDueAt)}
       </p>
@@ -198,16 +198,16 @@ export default function TicketDetailPage() {
       )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="card p-5">
           <h2 className="font-semibold">Customer</h2>
           <p className="mt-2 text-sm">
-            <Link href={`/portal/customers/${ticket.customer.id}`} className="font-medium text-blue-600 hover:underline">
+            <Link href={`/portal/customers/${ticket.customer.id}`} className="font-medium text-brand-700 hover:text-brand-800">
               {ticket.customer.user.name}
             </Link>{' '}
             <span className="font-mono text-slate-400">{ticket.customer.customerNo}</span>
           </p>
           <p className="text-sm text-slate-500">
-            <a href={`tel:${ticket.customer.user.phone}`} className="text-blue-600 hover:underline">
+            <a href={`tel:${ticket.customer.user.phone}`} className="text-brand-700 hover:text-brand-800">
               {ticket.customer.user.phone}
             </a>{' '}
             · {ticket.customer.address ?? '—'} · {ticket.customer.pincode ?? ''}
@@ -229,7 +229,7 @@ export default function TicketDetailPage() {
               <select
                 value={assignForm.technicianId}
                 onChange={(e) => setAssignForm({ ...assignForm, technicianId: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 px-2 py-1.5"
+                className="input"
                 required
               >
                 <option value="">Select technician…</option>
@@ -246,18 +246,18 @@ export default function TicketDetailPage() {
                   type="datetime-local"
                   value={assignForm.slotDate}
                   onChange={(e) => setAssignForm({ ...assignForm, slotDate: e.target.value })}
-                  className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5"
+                  className="input flex-1"
                 />
                 <input
                   placeholder="Window e.g. 10:00–12:00"
                   value={assignForm.slotWindow}
                   onChange={(e) => setAssignForm({ ...assignForm, slotWindow: e.target.value })}
-                  className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5"
+                  className="input flex-1"
                 />
               </div>
               <button
                 disabled={busy}
-                className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className="btn btn-primary btn-sm"
               >
                 Assign
               </button>
@@ -272,25 +272,25 @@ export default function TicketDetailPage() {
                   type="datetime-local"
                   value={postponeForm.slotDate}
                   onChange={(e) => setPostponeForm({ ...postponeForm, slotDate: e.target.value })}
-                  className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5"
+                  className="input flex-1"
                   required
                 />
                 <input
                   placeholder="Window"
                   value={postponeForm.slotWindow}
                   onChange={(e) => setPostponeForm({ ...postponeForm, slotWindow: e.target.value })}
-                  className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5"
+                  className="input flex-1"
                 />
               </div>
               <input
                 placeholder="Remarks (e.g. customer requested)"
                 value={postponeForm.remarks}
                 onChange={(e) => setPostponeForm({ ...postponeForm, remarks: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 px-2 py-1.5"
+                className="input"
               />
               <button
                 disabled={busy}
-                className="rounded-lg bg-amber-600 px-3 py-1.5 font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                className="btn btn-sm bg-amber-600 text-white shadow-sm hover:bg-amber-700 focus-visible:ring-amber-400"
               >
                 Postpone
               </button>
@@ -306,12 +306,12 @@ export default function TicketDetailPage() {
                     key={s}
                     disabled={busy}
                     onClick={() => transition(s)}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
+                    className={`btn btn-sm ${
                       s === 'CANCELLED' || s === 'REJECTED'
-                        ? 'bg-rose-600 text-white hover:bg-rose-700'
+                        ? 'btn-danger'
                         : s === 'COMPLETED'
-                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                          : 'bg-slate-700 text-white hover:bg-slate-800'
+                          ? 'btn-accent'
+                          : 'btn-primary'
                     }`}
                   >
                     {s.replace('_', ' ')}
@@ -323,7 +323,7 @@ export default function TicketDetailPage() {
           {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="card p-5">
           <h2 className="font-semibold">Job photos (geotagged)</h2>
           {ticket.media.length === 0 && (
             <p className="mt-2 text-sm text-slate-400">
@@ -348,7 +348,7 @@ export default function TicketDetailPage() {
                           href={`https://maps.google.com/?q=${m.latitude},${m.longitude}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-1 block text-blue-600 hover:underline"
+                          className="mt-1 block text-brand-700 hover:text-brand-800"
                         >
                           📍 {m.latitude.toFixed(4)}, {m.longitude.toFixed(4)}
                         </a>
