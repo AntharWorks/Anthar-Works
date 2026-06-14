@@ -6,7 +6,7 @@ import { SmsProvider } from './sms.provider';
 import { WhatsappProvider } from './whatsapp.provider';
 
 type SendInput = {
-  recipient: string; // phone number
+  recipient: string | null; // phone number (null for email-only accounts)
   channel: NotificationChannel;
   template: string; // template key (WhatsApp template name / SMS flow)
   message: string; // rendered text (SMS body / dev log)
@@ -36,15 +36,23 @@ export class NotificationsService {
   ) {}
 
   async send(input: SendInput): Promise<void> {
+    // Email-only accounts may have no phone — nothing to send over SMS/WhatsApp.
+    const recipient = input.recipient;
+    if (!recipient) {
+      this.logger.warn(
+        `Skipping ${input.template} (${input.channel}): no recipient`,
+      );
+      return;
+    }
     const log = await this.prisma.notificationLog.create({
       data: {
-        recipient: input.recipient,
+        recipient,
         channel: input.channel,
         template: input.template,
         payload: (input.payload ?? { message: input.message }) as object,
       },
     });
-    void this.dispatch(log.id, input);
+    void this.dispatch(log.id, { ...input, recipient });
   }
 
   // Convenience: same content over both WhatsApp and SMS, per FRD
@@ -88,7 +96,10 @@ export class NotificationsService {
     return true;
   }
 
-  private async dispatch(logId: string, input: SendInput): Promise<void> {
+  private async dispatch(
+    logId: string,
+    input: SendInput & { recipient: string },
+  ): Promise<void> {
     if (!(await this.isChannelEnabled(input))) {
       this.logger.log(
         `[SUPPRESSED ${input.channel}] ${input.template} → ${input.recipient} (channel disabled by admin)`,

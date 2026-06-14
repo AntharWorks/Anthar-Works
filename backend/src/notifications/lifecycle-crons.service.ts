@@ -31,10 +31,11 @@ export class LifecycleCronsService {
   }
 
   private async alreadySent(
-    recipient: string,
+    recipient: string | null,
     template: string,
     withinMs: number,
   ): Promise<boolean> {
+    if (!recipient) return false;
     const existing = await this.prisma.notificationLog.findFirst({
       where: {
         recipient,

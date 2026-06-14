@@ -61,6 +61,11 @@ export default function AccountPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [authMethod, setAuthMethod] = useState<'mobile' | 'email'>('mobile');
+  const [emailMode, setEmailMode] = useState<'login' | 'register'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [regName, setRegName] = useState('');
 
   const loadDashboard = useCallback(async (authToken: string) => {
     const res = await fetch('/api/v1/me/dashboard', {
@@ -105,6 +110,37 @@ export default function AccountPage() {
       if (!res.ok) throw new Error(d?.message ?? 'Invalid OTP');
       if (d.user.role !== 'CUSTOMER') {
         setError('This page is for customers. Staff: use the portal login.');
+        return;
+      }
+      setToken(d.accessToken);
+      await loadDashboard(d.accessToken);
+      setStep('home');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function emailAuth(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const path = emailMode === 'register' ? '/auth/register' : '/auth/login';
+      const body =
+        emailMode === 'register'
+          ? { name: regName, email, password }
+          : { email, password };
+      const res = await fetch(`/api/v1${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.message ?? 'Could not sign in');
+      if (d.user.role !== 'CUSTOMER') {
+        setError('This account is staff — use the staff portal to sign in.');
         return;
       }
       setToken(d.accessToken);
@@ -186,23 +222,102 @@ export default function AccountPage() {
       <h1 className="page-title">My Account</h1>
 
       {step === 'phone' && (
-        <form onSubmit={requestOtp} className="mt-6 max-w-sm space-y-3">
-          <input
-            placeholder="Registered mobile number"
-            value={phone}
-            maxLength={10}
-            inputMode="numeric"
-            onChange={(e) => setPhone(e.target.value.trim())}
-            className="input"
-            required
-          />
-          <button
-            disabled={busy}
-            className="btn btn-primary w-full"
-          >
-            {busy ? 'Sending…' : 'Send OTP'}
-          </button>
-        </form>
+        <div className="mt-6 max-w-sm">
+          <p className="text-sm text-slate-500">
+            Sign in to manage your purifiers, subscriptions and service tickets.
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
+            {(['mobile', 'email'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setAuthMethod(m);
+                  setError(null);
+                }}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  authMethod === m
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {m === 'mobile' ? 'Mobile OTP' : 'Email'}
+              </button>
+            ))}
+          </div>
+
+          {authMethod === 'mobile' ? (
+            <form onSubmit={requestOtp} className="mt-4 space-y-3">
+              <input
+                placeholder="Registered mobile number"
+                value={phone}
+                maxLength={10}
+                inputMode="numeric"
+                onChange={(e) => setPhone(e.target.value.trim())}
+                className="input"
+                required
+              />
+              <button disabled={busy} className="btn btn-primary w-full">
+                {busy ? 'Sending…' : 'Send OTP'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={emailAuth} className="mt-4 space-y-3">
+              {emailMode === 'register' && (
+                <input
+                  placeholder="Full name"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  className="input"
+                  required
+                />
+              )}
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value.trim())}
+                className="input"
+                required
+              />
+              <input
+                type="password"
+                placeholder={
+                  emailMode === 'register'
+                    ? 'Create a password (8+ characters)'
+                    : 'Your password'
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input"
+                minLength={8}
+                required
+              />
+              <button disabled={busy} className="btn btn-primary w-full">
+                {busy
+                  ? 'Please wait…'
+                  : emailMode === 'register'
+                    ? 'Create account'
+                    : 'Sign in'}
+              </button>
+              <p className="text-center text-sm text-slate-500">
+                {emailMode === 'register'
+                  ? 'Already have an account?'
+                  : 'New customer?'}{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailMode(emailMode === 'register' ? 'login' : 'register');
+                    setError(null);
+                  }}
+                  className="font-medium text-brand-700 hover:text-brand-800"
+                >
+                  {emailMode === 'register' ? 'Sign in' : 'Create an account'}
+                </button>
+              </p>
+            </form>
+          )}
+        </div>
       )}
 
       {step === 'otp' && (

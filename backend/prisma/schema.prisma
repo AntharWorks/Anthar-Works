@@ -45,14 +45,16 @@ enum UserStatus {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  phone     String     @unique // login id for every persona (OTP via SMS)
-  name      String
-  role      Role
-  status    UserStatus @default(ACTIVE)
-  fcmToken  String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id           String     @id @default(cuid())
+  phone        String?    @unique // OTP login via SMS (optional for email accounts)
+  email        String?    @unique // email + password login (optional)
+  passwordHash String? // set for email/password accounts
+  name         String
+  role         Role
+  status       UserStatus @default(ACTIVE)
+  fcmToken     String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   customer            Customer?
   assignedTickets     Ticket[]            @relation("TechnicianTickets")

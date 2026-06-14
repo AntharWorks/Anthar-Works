@@ -5,14 +5,56 @@ import { FormEvent, useState } from 'react';
 import { DropletMark } from '@/components/Logo';
 import { api, setSession, SessionUser } from '@/lib/api';
 
+type AuthResult = {
+  accessToken: string;
+  refreshToken?: string;
+  user: SessionUser;
+};
+
 export default function LoginPage() {
   const router = useRouter();
+  const [method, setMethod] = useState<'email' | 'otp'>('email');
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+
+  // email + password
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  // phone OTP
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [devOtp, setDevOtp] = useState<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  function completeStaffLogin(res: AuthResult) {
+    if (res.user.role !== 'ADMIN' && res.user.role !== 'BACKEND') {
+      setError('This portal is for Admin and Backend staff only.');
+      return;
+    }
+    setSession(res.accessToken, res.user, res.refreshToken);
+    router.replace('/portal');
+  }
+
+  async function emailSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const path = mode === 'register' ? '/auth/register' : '/auth/login';
+      const body =
+        mode === 'register' ? { name, email, password } : { email, password };
+      const res = await api<AuthResult>(path, { method: 'POST', body });
+      completeStaffLogin(res);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function requestOtp(e: FormEvent) {
     e.preventDefault();
@@ -37,22 +79,21 @@ export default function LoginPage() {
     setError(null);
     setBusy(true);
     try {
-      const res = await api<{
-        accessToken: string;
-        refreshToken?: string;
-        user: SessionUser;
-      }>('/auth/otp/verify', { method: 'POST', body: { phone, code } });
-      if (res.user.role !== 'ADMIN' && res.user.role !== 'BACKEND') {
-        setError('This portal is for Admin and Backend staff only.');
-        return;
-      }
-      setSession(res.accessToken, res.user, res.refreshToken);
-      router.replace('/portal');
+      const res = await api<AuthResult>('/auth/otp/verify', {
+        method: 'POST',
+        body: { phone, code },
+      });
+      completeStaffLogin(res);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setBusy(false);
     }
+  }
+
+  function switchMethod(next: 'email' | 'otp') {
+    setMethod(next);
+    setError(null);
   }
 
   return (
@@ -71,13 +112,87 @@ export default function LoginPage() {
             <h1 className="mt-4 font-display text-xl font-bold text-slate-900">
               Anthar Works
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Staff Portal — sign in with your registered mobile number.
-            </p>
+            <p className="mt-1 text-sm text-slate-500">Staff Portal</p>
           </div>
 
-          {step === 'phone' ? (
-            <form onSubmit={requestOtp} className="mt-6 space-y-4">
+          {/* Method switch */}
+          <div className="mt-6 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
+            {(['email', 'otp'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => switchMethod(m)}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  method === m
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {m === 'email' ? 'Email' : 'Mobile OTP'}
+              </button>
+            ))}
+          </div>
+
+          {method === 'email' ? (
+            <form onSubmit={emailSubmit} className="mt-5 space-y-4">
+              {mode === 'register' && (
+                <div>
+                  <label className="label">Full name</label>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your name"
+                    className="input"
+                    required
+                  />
+                </div>
+              )}
+              <div>
+                <label className="label">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value.trim())}
+                  placeholder="you@example.com"
+                  className="input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={mode === 'register' ? 'At least 8 characters' : 'Your password'}
+                  className="input"
+                  minLength={8}
+                  required
+                />
+              </div>
+              <button disabled={busy} className="btn btn-primary w-full">
+                {busy
+                  ? 'Please wait…'
+                  : mode === 'register'
+                    ? 'Create account'
+                    : 'Sign in'}
+              </button>
+              <p className="text-center text-sm text-slate-500">
+                {mode === 'register' ? 'Already have an account?' : 'New here?'}{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode(mode === 'register' ? 'login' : 'register');
+                    setError(null);
+                  }}
+                  className="font-medium text-brand-700 hover:text-brand-800"
+                >
+                  {mode === 'register' ? 'Sign in' : 'Create an account'}
+                </button>
+              </p>
+            </form>
+          ) : step === 'phone' ? (
+            <form onSubmit={requestOtp} className="mt-5 space-y-4">
               <div>
                 <label className="label">Mobile number</label>
                 <input
@@ -95,7 +210,7 @@ export default function LoginPage() {
               </button>
             </form>
           ) : (
-            <form onSubmit={verifyOtp} className="mt-6 space-y-4">
+            <form onSubmit={verifyOtp} className="mt-5 space-y-4">
               <p className="text-sm text-slate-600">
                 OTP sent to <span className="font-medium">{phone}</span>{' '}
                 <button

@@ -1,13 +1,20 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { NotificationChannel, User } from '@prisma/client';
-import { createHash, randomBytes, randomInt } from 'crypto';
+import { NotificationChannel, Role, User, UserStatus } from '@prisma/client';
+import {
+  createHash,
+  randomBytes,
+  randomInt,
+  scryptSync,
+  timingSafeEqual,
+} from 'crypto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -25,6 +32,81 @@ export class AuthService {
 
   private hash(value: string): string {
     return createHash('sha256').update(value).digest('hex');
+  }
+
+  // Emails that are granted ADMIN on registration (the super-admin allowlist).
+  private superAdminEmails(): string[] {
+    return (
+      this.config.get<string>('SUPER_ADMIN_EMAILS') ?? 'roshan.manuel@gmail.com'
+    )
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  // salt:derivedKey using scrypt — no external dependency.
+  private hashPassword(password: string): string {
+    const salt = randomBytes(16).toString('hex');
+    const derived = scryptSync(password, salt, 64).toString('hex');
+    return `${salt}:${derived}`;
+  }
+
+  private verifyPassword(password: string, stored: string): boolean {
+    const [salt, key] = stored.split(':');
+    if (!salt || !key) return false;
+    const derived = scryptSync(password, salt, 64);
+    const keyBuf = Buffer.from(key, 'hex');
+    return keyBuf.length === derived.length && timingSafeEqual(keyBuf, derived);
+  }
+
+  // Email + password sign-up. Super-admin emails become ADMIN; everyone else
+  // registers as a CUSTOMER (with a customer profile).
+  async register(input: { name: string; email: string; password: string }) {
+    const email = input.email.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new ConflictException('An account with this email already exists');
+    }
+    const role = this.superAdminEmails().includes(email)
+      ? Role.ADMIN
+      : Role.CUSTOMER;
+    const passwordHash = this.hashPassword(input.password);
+
+    if (role === Role.CUSTOMER) {
+      const count = await this.prisma.customer.count();
+      const customerNo = `AW-${String(count + 1).padStart(6, '0')}`;
+      const user = await this.prisma.user.create({
+        data: {
+          email,
+          name: input.name,
+          role,
+          passwordHash,
+          customer: { create: { customerNo } },
+        },
+      });
+      return this.issueTokenPair(user);
+    }
+
+    const user = await this.prisma.user.create({
+      data: { email, name: input.name, role, passwordHash },
+    });
+    return this.issueTokenPair(user);
+  }
+
+  async loginWithPassword(input: { email: string; password: string }) {
+    const email = input.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (
+      !user ||
+      !user.passwordHash ||
+      !this.verifyPassword(input.password, user.passwordHash)
+    ) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('This account is not active');
+    }
+    return this.issueTokenPair(user);
   }
 
   // In development (no MSG91 keys) the OTP is also returned in the response.
