@@ -27,12 +27,18 @@ function StatCard({
   href?: string;
 }) {
   const card = (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 hover:shadow-sm">
+    <div className={`card p-5 ${href ? 'card-hover' : ''}`}>
       <p className="text-sm text-slate-500">{label}</p>
-      <p className={`mt-1 text-3xl font-bold ${tone}`}>{value}</p>
+      <p className={`mt-1 font-display text-3xl font-bold ${tone}`}>{value}</p>
     </div>
   );
-  return href ? <Link href={href}>{card}</Link> : card;
+  return href ? (
+    <Link href={href} className="block">
+      {card}
+    </Link>
+  ) : (
+    card
+  );
 }
 
 export default function DashboardPage() {
@@ -44,12 +50,19 @@ export default function DashboardPage() {
   }, []);
 
   if (error) return <p className="text-rose-600">{error}</p>;
-  if (!stats) return <p className="text-slate-500">Loading dashboard…</p>;
+  if (!stats)
+    return (
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="card h-24 animate-pulse p-5" />
+        ))}
+      </div>
+    );
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Master Dashboard</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="page-title">Master Dashboard</h1>
+      <p className="page-subtitle">
         Live overview across customers, devices and service operations.
       </p>
 
@@ -86,7 +99,9 @@ export default function DashboardPage() {
         />
       </div>
 
-      <h2 className="mt-10 text-lg font-semibold">Ticket pipeline</h2>
+      <h2 className="mt-10 font-display text-lg font-semibold text-slate-900">
+        Ticket pipeline
+      </h2>
       <div className="mt-3 grid grid-cols-3 gap-3 lg:grid-cols-9">
         {[
           'CREATED',
@@ -102,9 +117,11 @@ export default function DashboardPage() {
           <Link
             key={status}
             href={`/portal/tickets?status=${status}`}
-            className="rounded-lg border border-slate-200 bg-white p-3 text-center hover:shadow-sm"
+            className="card card-hover p-3 text-center"
           >
-            <p className="text-xl font-bold">{stats.tickets[status] ?? 0}</p>
+            <p className="font-display text-xl font-bold text-slate-900">
+              {stats.tickets[status] ?? 0}
+            </p>
             <p className="mt-1 text-[11px] font-medium text-slate-500">
               {status.replace('_', ' ')}
             </p>

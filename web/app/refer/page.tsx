@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
+import { StoreLayout } from '@/components/store/StoreLayout';
 
 type Product = { id: string; brand: string; model: string };
 
@@ -57,27 +58,27 @@ export default function ReferPage() {
 
   if (done) {
     return (
-      <main className="mx-auto max-w-lg px-6 py-24 text-center">
-        <div className="text-5xl">🎉</div>
-        <h1 className="mt-4 text-2xl font-bold">Thank you!</h1>
-        <p className="mt-2 text-slate-600">
-          We&apos;ve received the details — our team will reach out on WhatsApp
-          shortly with the best offer.
-        </p>
-        <Link href="/" className="mt-6 inline-block text-blue-600 hover:underline">
-          Back to home
-        </Link>
-      </main>
+      <StoreLayout>
+        <div className="mx-auto max-w-2xl px-4 py-20 text-center sm:px-6">
+          <div className="text-5xl">🎉</div>
+          <h1 className="mt-4 page-title text-2xl">Thank you!</h1>
+          <p className="mt-2 text-slate-600">
+            We&apos;ve received the details — our team will reach out on WhatsApp
+            shortly with the best offer.
+          </p>
+          <Link href="/" className="btn btn-primary mt-7">
+            Back to home
+          </Link>
+        </div>
+      </StoreLayout>
     );
   }
 
   return (
-    <main className="mx-auto max-w-lg px-6 py-12">
-      <Link href="/" className="text-sm text-blue-600 hover:underline">
-        ← Home
-      </Link>
-      <h1 className="mt-2 text-2xl font-bold">Refer a friend / Buy-back</h1>
-      <p className="mt-1 text-sm text-slate-500">
+    <StoreLayout>
+      <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
+      <h1 className="page-title">Refer a friend / Buy-back</h1>
+      <p className="page-subtitle mt-1">
         Refer someone for a new purifier, or exchange your old one under our
         buy-back program.
       </p>
@@ -94,7 +95,7 @@ export default function ReferPage() {
               onClick={() => setForm({ ...form, source: opt.value })}
               className={`flex-1 rounded-lg border px-4 py-2 font-medium ${
                 form.source === opt.value
-                  ? 'border-blue-600 bg-blue-50 text-blue-700'
+                  ? 'border-brand-600 bg-brand-50 text-brand-700'
                   : 'border-slate-300 text-slate-600 hover:bg-slate-50'
               }`}
             >
@@ -106,7 +107,7 @@ export default function ReferPage() {
           placeholder={form.source === 'REFERRAL' ? "Friend's name" : 'Your name'}
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2"
+          className="input"
           required
         />
         <input
@@ -117,19 +118,19 @@ export default function ReferPage() {
           maxLength={10}
           inputMode="numeric"
           onChange={(e) => setForm({ ...form, phone: e.target.value.trim() })}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2"
+          className="input"
           required
         />
         <input
           placeholder="City / area (optional)"
           value={form.location}
           onChange={(e) => setForm({ ...form, location: e.target.value })}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2"
+          className="input"
         />
         <select
           value={form.productId}
           onChange={(e) => setForm({ ...form, productId: e.target.value })}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2"
+          className="input"
         >
           <option value="">Interested model (optional)</option>
           {products.map((p) => (
@@ -140,12 +141,13 @@ export default function ReferPage() {
         </select>
         <button
           disabled={busy}
-          className="w-full rounded-lg bg-blue-600 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="btn btn-primary btn-lg w-full"
         >
           {busy ? 'Submitting…' : 'Submit'}
         </button>
         {error && <p className="text-sm text-rose-600">{error}</p>}
       </form>
-    </main>
+      </div>
+    </StoreLayout>
   );
 }

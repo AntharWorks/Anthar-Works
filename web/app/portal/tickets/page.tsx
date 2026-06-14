@@ -59,8 +59,8 @@ function TicketsList() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Tickets</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="page-title">Tickets</h1>
+      <p className="page-subtitle">
         SLA colors: <span className="font-medium text-emerald-600">on track</span> ·{' '}
         <span className="font-medium text-amber-600">due within 24h</span> ·{' '}
         <span className="font-medium text-rose-600">breached</span>
@@ -73,7 +73,7 @@ function TicketsList() {
             setStatus(e.target.value);
             setPage(1);
           }}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className="input w-auto"
         >
           <option value="">All statuses</option>
           {ALL_STATUSES.map((s) => (
@@ -90,49 +90,49 @@ function TicketsList() {
             setPincode(e.target.value.trim());
             setPage(1);
           }}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className="input w-auto"
         />
       </div>
 
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-500">
+      <div className="card mt-4 overflow-hidden">
+        <table className="table-base">
+          <thead>
             <tr>
-              <th className="px-4 py-3">Ticket</th>
-              <th className="px-4 py-3">Customer</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Technician</th>
-              <th className="px-4 py-3">Slot</th>
-              <th className="px-4 py-3">SLA</th>
+              <th>Ticket</th>
+              <th>Customer</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Technician</th>
+              <th>Slot</th>
+              <th>SLA</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((t) => {
               const sla = slaTone(t.status, t.slaDueAt);
               return (
-                <tr key={t.id} className="border-t border-slate-100 hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono">
-                    <Link href={`/portal/tickets/${t.id}`} className="text-blue-600 hover:underline">
+                <tr key={t.id}>
+                  <td className="font-mono">
+                    <Link href={`/portal/tickets/${t.id}`} className="text-brand-700 hover:text-brand-800">
                       {t.ticketNo}
                     </Link>
                   </td>
-                  <td className="px-4 py-3">
+                  <td>
                     {t.customer.user.name}
                     <span className="block text-xs text-slate-400">
                       {t.customer.customerNo} · {t.customer.pincode ?? '—'}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{t.type}</td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[t.status]}`}>
+                  <td>{t.type}</td>
+                  <td>
+                    <span className={`badge ${STATUS_BADGE[t.status]}`}>
                       {t.status.replace('_', ' ')}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{t.assignedTechnician?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-xs">
+                  <td>{t.assignedTechnician?.name ?? '—'}</td>
+                  <td className="text-xs">
                     {t.slotDate ? (
                       <>
                         {formatDateTime(t.slotDate)}
@@ -142,8 +142,8 @@ function TicketsList() {
                       '—'
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${sla.className}`}>
+                  <td>
+                    <span className={`badge ${sla.className}`}>
                       {sla.label}
                     </span>
                     <span className="block text-xs text-slate-400">
@@ -170,14 +170,14 @@ function TicketsList() {
         <button
           disabled={page <= 1}
           onClick={() => setPage((p) => p - 1)}
-          className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-40"
+          className="btn btn-outline btn-sm"
         >
           Previous
         </button>
         <button
           disabled={page * 20 >= total}
           onClick={() => setPage((p) => p + 1)}
-          className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-40"
+          className="btn btn-outline btn-sm"
         >
           Next
         </button>

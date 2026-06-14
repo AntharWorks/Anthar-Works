@@ -47,41 +47,41 @@ export default function PlansPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Subscription Plans</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="page-title">Subscription Plans</h1>
+      <p className="page-subtitle">
         Standard plans plus on-the-fly custom plans for high-volume users.
       </p>
 
       {isAdmin && (
         <form
           onSubmit={createPlan}
-          className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-5"
+          className="card mt-4 flex flex-wrap items-end gap-3 p-5"
         >
-          <label className="text-sm font-medium">
+          <label className="label">
             Plan name
             <input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="mt-1 block rounded-lg border border-slate-300 px-3 py-2"
+              className="input mt-1 block"
               required
             />
           </label>
-          <label className="text-sm font-medium">
+          <label className="label">
             Price (₹)
             <input
               value={form.priceInr}
               inputMode="numeric"
               onChange={(e) => setForm({ ...form, priceInr: e.target.value.trim() })}
-              className="mt-1 block w-28 rounded-lg border border-slate-300 px-3 py-2"
+              className="input mt-1 block w-28"
               required
             />
           </label>
-          <label className="text-sm font-medium">
+          <label className="label">
             Billing
             <select
               value={form.billingPeriod}
               onChange={(e) => setForm({ ...form, billingPeriod: e.target.value })}
-              className="mt-1 block rounded-lg border border-slate-300 px-3 py-2"
+              className="input mt-1 block"
             >
               {PERIODS.map((p) => (
                 <option key={p} value={p}>
@@ -90,7 +90,7 @@ export default function PlansPage() {
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-2 pb-2 text-sm font-medium">
+          <label className="label flex items-center gap-2 pb-2">
             <input
               type="checkbox"
               checked={form.isCustom}
@@ -98,7 +98,7 @@ export default function PlansPage() {
             />
             Custom plan
           </label>
-          <button className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+          <button className="btn btn-primary">
             Create plan
           </button>
         </form>
@@ -106,8 +106,8 @@ export default function PlansPage() {
 
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="card mt-4 overflow-hidden">
+        <table className="table-base w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr>
               <th className="px-4 py-3">Plan</th>
@@ -124,7 +124,7 @@ export default function PlansPage() {
                 <td className="px-4 py-3">{p.billingPeriod.replace('_', ' ')}</td>
                 <td className="px-4 py-3">
                   {p.isCustom ? (
-                    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
+                    <span className="badge bg-brand-50 text-brand-700">
                       Custom
                     </span>
                   ) : (

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import Script from 'next/script';
 import { FormEvent, useEffect, useState } from 'react';
+import { DropletMark } from '@/components/Logo';
+import { StoreLayout } from '@/components/store/StoreLayout';
 
 type Product = {
   id: string;
@@ -120,140 +122,162 @@ export default function CheckoutPage() {
     }
   }
 
-  if (paid) {
+  if (paid || placed) {
+    const offline = Boolean(placed);
+    const orderNo = (paid ?? placed)!.orderNo;
     return (
-      <main className="mx-auto max-w-lg px-6 py-24 text-center">
-        <div className="text-5xl">✅</div>
-        <h1 className="mt-4 text-2xl font-bold">Payment successful</h1>
-        <p className="mt-2 text-slate-600">
-          Order <span className="font-mono font-semibold">{paid.orderNo}</span> is
-          confirmed. You&apos;ll receive delivery and installation updates on
-          WhatsApp & SMS.
-        </p>
-        <Link href="/products" className="mt-6 inline-block text-blue-600 hover:underline">
-          Continue shopping
-        </Link>
-      </main>
-    );
-  }
-
-  if (placed) {
-    return (
-      <main className="mx-auto max-w-lg px-6 py-24 text-center">
-        <div className="text-5xl">📝</div>
-        <h1 className="mt-4 text-2xl font-bold">Order placed</h1>
-        <p className="mt-2 text-slate-600">
-          Your order <span className="font-mono font-semibold">{placed.orderNo}</span> is
-          recorded. Our team will contact you shortly to collect payment and
-          confirm your installation. You&apos;ll get updates on WhatsApp & SMS.
-        </p>
-        <Link href="/products" className="mt-6 inline-block text-blue-600 hover:underline">
-          Continue shopping
-        </Link>
-      </main>
+      <StoreLayout>
+        <div className="mx-auto max-w-lg px-4 py-20 text-center sm:px-6">
+          <div
+            className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${
+              offline ? 'bg-brand-50 text-brand-600' : 'bg-emerald-50 text-emerald-600'
+            }`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-8 w-8">
+              <path d="m5 13 4 4L19 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <h1 className="mt-5 page-title text-2xl">
+            {offline ? 'Order placed' : 'Payment successful'}
+          </h1>
+          <p className="mt-2 text-slate-600">
+            {offline ? (
+              <>
+                Your order <span className="font-mono font-semibold">{orderNo}</span> is
+                recorded. Our team will contact you shortly to collect payment and
+                confirm your installation.
+              </>
+            ) : (
+              <>
+                Order <span className="font-mono font-semibold">{orderNo}</span> is
+                confirmed. You&apos;ll receive delivery and installation updates on
+                WhatsApp &amp; SMS.
+              </>
+            )}
+          </p>
+          <Link href="/products" className="btn btn-primary mt-7">
+            Continue shopping
+          </Link>
+        </div>
+      </StoreLayout>
     );
   }
 
   return (
-    <main className="mx-auto max-w-lg px-6 py-12">
+    <StoreLayout>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
-      <Link href="/products" className="text-sm text-blue-600 hover:underline">
-        ← Back to catalog
-      </Link>
-      <h1 className="mt-2 text-2xl font-bold">Checkout</h1>
+      <div className="mx-auto max-w-lg px-4 py-12 sm:px-6">
+        <Link href="/products" className="text-sm font-medium text-brand-700 hover:text-brand-800">
+          ← Back to catalog
+        </Link>
+        <h1 className="mt-3 page-title">Checkout</h1>
 
-      {product ? (
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
+        {product ? (
+          <div className="card mt-5 flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-50 to-sky-50">
+                <DropletMark className="h-7 w-7" />
+              </span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">
+                  {product.brand}
+                </p>
+                <p className="font-semibold text-slate-900">
+                  {product.model}
+                  {product.variant ? ` · ${product.variant}` : ''}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-bold text-slate-900">
+                ₹{(Number(product.priceInr) * qty).toLocaleString('en-IN')}
+              </p>
+              <label className="text-sm text-slate-500">
+                Qty{' '}
+                <select
+                  value={qty}
+                  onChange={(e) => setQty(Number(e.target.value))}
+                  className="rounded-lg border border-slate-300 px-1.5 py-0.5"
+                >
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-5 text-slate-500">Loading product…</p>
+        )}
+
+        <form onSubmit={startCheckout} className="card mt-5 space-y-4 p-5 sm:p-6">
           <div>
-            <p className="text-sm text-slate-500">{product.brand}</p>
-            <p className="font-semibold">
-              {product.model}
-              {product.variant ? ` · ${product.variant}` : ''}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-lg font-bold">
-              ₹{(Number(product.priceInr) * qty).toLocaleString('en-IN')}
-            </p>
-            <label className="text-sm text-slate-500">
-              Qty{' '}
-              <select
-                value={qty}
-                onChange={(e) => setQty(Number(e.target.value))}
-                className="rounded border border-slate-300 px-1 py-0.5"
-              >
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
-      ) : (
-        <p className="mt-4 text-slate-500">Loading product…</p>
-      )}
-
-      <form onSubmit={startCheckout} className="mt-6 space-y-3">
-          <input
-            placeholder="Full name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2"
-            required
-          />
-          <input
-            placeholder="Mobile number (10 digits)"
-            value={form.phone}
-            maxLength={10}
-            inputMode="numeric"
-            onChange={(e) => setForm({ ...form, phone: e.target.value.trim() })}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2"
-            required
-          />
-          <input
-            placeholder="Delivery address"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2"
-            required
-          />
-          <div className="flex gap-3">
+            <label className="label">Full name</label>
             <input
-              placeholder="Pincode"
-              value={form.pincode}
-              maxLength={6}
-              inputMode="numeric"
-              onChange={(e) => setForm({ ...form, pincode: e.target.value.trim() })}
-              className="w-1/2 rounded-lg border border-slate-300 px-3 py-2"
+              placeholder="Your name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="input"
               required
             />
+          </div>
+          <div>
+            <label className="label">Mobile number</label>
             <input
-              placeholder="City"
-              value={form.city}
-              onChange={(e) => setForm({ ...form, city: e.target.value })}
-              className="w-1/2 rounded-lg border border-slate-300 px-3 py-2"
+              placeholder="10-digit mobile"
+              value={form.phone}
+              maxLength={10}
+              inputMode="numeric"
+              onChange={(e) => setForm({ ...form, phone: e.target.value.trim() })}
+              className="input"
+              required
             />
           </div>
-          <button
-            disabled={busy || !product}
-            className="w-full rounded-lg bg-blue-600 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {busy
-              ? 'Creating order…'
-              : paymentsLive
-                ? 'Pay with Razorpay'
-                : 'Place order'}
+          <div>
+            <label className="label">Delivery address</label>
+            <input
+              placeholder="House, street, area"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              className="input"
+              required
+            />
+          </div>
+          <div className="flex gap-3">
+            <div className="w-1/2">
+              <label className="label">Pincode</label>
+              <input
+                placeholder="560001"
+                value={form.pincode}
+                maxLength={6}
+                inputMode="numeric"
+                onChange={(e) => setForm({ ...form, pincode: e.target.value.trim() })}
+                className="input"
+                required
+              />
+            </div>
+            <div className="w-1/2">
+              <label className="label">City</label>
+              <input
+                placeholder="City"
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                className="input"
+              />
+            </div>
+          </div>
+          <button disabled={busy || !product} className="btn btn-primary btn-lg w-full">
+            {busy ? 'Creating order…' : paymentsLive ? 'Pay with Razorpay' : 'Place order'}
           </button>
           {!paymentsLive && (
-            <p className="text-xs text-slate-500">
-              Online payment isn&apos;t enabled yet — place your order and our
-              team will contact you to collect payment.
+            <p className="text-center text-xs text-slate-500">
+              Online payment isn&apos;t enabled yet — place your order and our team
+              will contact you to collect payment.
             </p>
           )}
-          {error && <p className="text-sm text-rose-600">{error}</p>}
+          {error && <p className="text-center text-sm text-rose-600">{error}</p>}
         </form>
-    </main>
+      </div>
+    </StoreLayout>
   );
 }

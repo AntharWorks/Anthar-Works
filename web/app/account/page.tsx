@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FormEvent, useCallback, useState } from 'react';
+import { StoreLayout } from '@/components/store/StoreLayout';
 
 type Dashboard = {
   customerNo: string;
@@ -180,11 +181,9 @@ export default function AccountPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-12">
-      <Link href="/" className="text-sm text-blue-600 hover:underline">
-        ← Home
-      </Link>
-      <h1 className="mt-2 text-2xl font-bold">My Account</h1>
+    <StoreLayout>
+      <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
+      <h1 className="page-title">My Account</h1>
 
       {step === 'phone' && (
         <form onSubmit={requestOtp} className="mt-6 max-w-sm space-y-3">
@@ -194,12 +193,12 @@ export default function AccountPage() {
             maxLength={10}
             inputMode="numeric"
             onChange={(e) => setPhone(e.target.value.trim())}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            className="input"
             required
           />
           <button
             disabled={busy}
-            className="w-full rounded-lg bg-blue-600 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="btn btn-primary w-full"
           >
             {busy ? 'Sending…' : 'Send OTP'}
           </button>
@@ -219,12 +218,12 @@ export default function AccountPage() {
             maxLength={6}
             inputMode="numeric"
             onChange={(e) => setCode(e.target.value.trim())}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 tracking-widest"
+            className="input tracking-widest"
             required
           />
           <button
             disabled={busy}
-            className="w-full rounded-lg bg-blue-600 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="btn btn-primary w-full"
           >
             {busy ? 'Verifying…' : 'Continue'}
           </button>
@@ -238,7 +237,7 @@ export default function AccountPage() {
             <span className="font-mono text-sm text-slate-400">{data.customerNo}</span>
           </p>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-5">
+          <section className="card p-5">
             <h2 className="font-semibold">My purifiers & warranty</h2>
             {data.devices.length === 0 && (
               <p className="mt-2 text-sm text-slate-400">No devices registered yet.</p>
@@ -267,7 +266,7 @@ export default function AccountPage() {
             </ul>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-5">
+          <section className="card p-5">
             <h2 className="font-semibold">My subscriptions</h2>
             <ul className="mt-2 space-y-2 text-sm">
               {data.subscriptions.map((s) => (
@@ -277,7 +276,7 @@ export default function AccountPage() {
                     {Number(s.plan.priceInr).toLocaleString('en-IN')} · renews{' '}
                     {fmt(s.nextRenewalAt)}
                   </span>
-                  <Link href="/renew" className="text-blue-600 hover:underline">
+                  <Link href="/renew" className="font-medium text-brand-700 hover:text-brand-800">
                     Renew
                   </Link>
                 </li>
@@ -288,21 +287,21 @@ export default function AccountPage() {
             </ul>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-5">
+          <section className="card p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold">My service tickets</h2>
               <form onSubmit={raiseTicket} className="flex items-center gap-2 text-sm">
                 <select
                   value={complaintType}
                   onChange={(e) => setComplaintType(e.target.value)}
-                  className="rounded-lg border border-slate-300 px-2 py-1.5"
+                  className="input"
                 >
                   <option value="COMPLAINT">Complaint</option>
                   <option value="SERVICE">Service request</option>
                 </select>
                 <button
                   disabled={busy}
-                  className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="btn btn-primary btn-sm"
                 >
                   Raise ticket
                 </button>
@@ -319,12 +318,12 @@ export default function AccountPage() {
                   <div className="flex items-center justify-between">
                     <span className="font-mono">{t.ticketNo}</span>
                     <span>{t.type}</span>
-                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                    <span className="badge bg-brand-50 text-brand-700">
                       {t.status.replace('_', ' ')}
                     </span>
                     <button
                       onClick={() => viewTimeline(t.id)}
-                      className="text-blue-600 hover:underline"
+                      className="font-medium text-brand-700 hover:text-brand-800"
                     >
                       Track
                     </button>
@@ -343,13 +342,13 @@ export default function AccountPage() {
                               value={slotForm.date}
                               min={new Date().toISOString().slice(0, 10)}
                               onChange={(e) => setSlotForm({ ...slotForm, date: e.target.value })}
-                              className="rounded-lg border border-slate-300 px-2 py-1"
+                              className="input"
                               required
                             />
                             <select
                               value={slotForm.window}
                               onChange={(e) => setSlotForm({ ...slotForm, window: e.target.value })}
-                              className="rounded-lg border border-slate-300 px-2 py-1"
+                              className="input"
                             >
                               {SLOT_WINDOWS.map((w) => (
                                 <option key={w} value={w}>
@@ -359,7 +358,7 @@ export default function AccountPage() {
                             </select>
                             <button
                               disabled={busy}
-                              className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                              className="btn btn-accent btn-sm"
                             >
                               Save slot
                             </button>
@@ -367,7 +366,7 @@ export default function AccountPage() {
                         ) : (
                           <button
                             onClick={() => setSlotFor(t.id)}
-                            className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                            className="btn btn-accent btn-sm"
                           >
                             Pick installation slot
                           </button>
@@ -405,6 +404,7 @@ export default function AccountPage() {
       )}
 
       {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
-    </main>
+      </div>
+    </StoreLayout>
   );
 }

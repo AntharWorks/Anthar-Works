@@ -45,13 +45,13 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Reports</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="page-title">Reports</h1>
+      <p className="page-subtitle">
         Excel downloads for operations tracking and follow-ups.
       </p>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="card p-5">
           <h2 className="font-semibold">Pending tickets dump</h2>
           <p className="mt-1 text-sm text-slate-500">
             Every open ticket with customer contact numbers, technician, slot
@@ -62,35 +62,35 @@ export default function ReportsPage() {
             onClick={() =>
               run('pending', '/reports/pending-tickets', 'pending-tickets.xlsx')
             }
-            className="mt-4 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="btn btn-primary mt-4"
           >
             {busy === 'pending' ? 'Generating…' : 'Download .xlsx'}
           </button>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="card p-5">
           <h2 className="font-semibold">Operations report</h2>
           <p className="mt-1 text-sm text-slate-500">
             Four sheets: call closures, sales, technician-wise and
             backend-wise summaries. Optionally limit to a date range.
           </p>
           <div className="mt-3 flex gap-3 text-sm">
-            <label className="font-medium">
+            <label className="label">
               From
               <input
                 type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
-                className="mt-1 block rounded-lg border border-slate-300 px-3 py-2"
+                className="input mt-1"
               />
             </label>
-            <label className="font-medium">
+            <label className="label">
               To
               <input
                 type="date"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
-                className="mt-1 block rounded-lg border border-slate-300 px-3 py-2"
+                className="input mt-1"
               />
             </label>
           </div>
@@ -99,7 +99,7 @@ export default function ReportsPage() {
             onClick={() =>
               run('ops', `/reports/operations${rangeQs}`, 'operations-report.xlsx')
             }
-            className="mt-4 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="btn btn-primary mt-4"
           >
             {busy === 'ops' ? 'Generating…' : 'Download .xlsx'}
           </button>

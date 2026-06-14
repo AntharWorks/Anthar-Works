@@ -45,38 +45,38 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Products</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="page-title">Products</h1>
+      <p className="page-subtitle">
         Multi-brand purifier catalog shown on the storefront.
       </p>
 
       {isAdmin && (
         <form
           onSubmit={createProduct}
-          className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-5"
+          className="card mt-4 flex flex-wrap items-end gap-3 p-5"
         >
           {(['brand', 'model', 'variant'] as const).map((field) => (
-            <label key={field} className="text-sm font-medium capitalize">
+            <label key={field} className="label capitalize">
               {field}
               <input
                 value={form[field]}
                 onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                className="mt-1 block rounded-lg border border-slate-300 px-3 py-2"
+                className="input mt-1 block"
                 required={field !== 'variant'}
               />
             </label>
           ))}
-          <label className="text-sm font-medium">
+          <label className="label">
             Price (₹)
             <input
               value={form.priceInr}
               inputMode="numeric"
               onChange={(e) => setForm({ ...form, priceInr: e.target.value.trim() })}
-              className="mt-1 block w-28 rounded-lg border border-slate-300 px-3 py-2"
+              className="input mt-1 block w-28"
               required
             />
           </label>
-          <button className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+          <button className="btn btn-primary">
             Add product
           </button>
         </form>
@@ -84,8 +84,8 @@ export default function ProductsPage() {
 
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="card mt-4 overflow-hidden">
+        <table className="table-base w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr>
               <th className="px-4 py-3">Brand</th>

@@ -100,16 +100,16 @@ export default function SettingsPage() {
   if (!isAdmin) {
     return (
       <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="mt-2 text-slate-500">Only admins can change system settings.</p>
+        <h1 className="page-title">Settings</h1>
+        <p className="page-subtitle">Only admins can change system settings.</p>
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold">Settings</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="page-title">Settings</h1>
+      <p className="page-subtitle">
         Turn features on or off. Changes take effect within a few seconds.
       </p>
 
@@ -122,7 +122,7 @@ export default function SettingsPage() {
           return (
             <section
               key={t.key}
-              className="rounded-xl border border-slate-200 bg-white p-5"
+              className="card p-5"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>

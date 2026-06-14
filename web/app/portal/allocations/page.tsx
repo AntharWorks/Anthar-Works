@@ -93,15 +93,15 @@ export default function AllocationsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Allocations</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="page-title">Allocations</h1>
+      <p className="page-subtitle">
         Route customer data to backend staff by pincode or model, and assign
         each backend their technician set.
       </p>
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="card p-5">
           <h2 className="font-semibold">Customer data → Backend staff</h2>
 
           {isAdmin && (
@@ -109,7 +109,7 @@ export default function AllocationsPage() {
               <select
                 value={allocForm.backendId}
                 onChange={(e) => setAllocForm({ ...allocForm, backendId: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 px-2 py-1.5"
+                className="input"
                 required
               >
                 <option value="">Select backend staff…</option>
@@ -125,7 +125,7 @@ export default function AllocationsPage() {
                   onChange={(e) =>
                     setAllocForm({ ...allocForm, mode: e.target.value as 'pincode' | 'product' })
                   }
-                  className="rounded-lg border border-slate-300 px-2 py-1.5"
+                  className="input w-auto"
                 >
                   <option value="pincode">By pincode</option>
                   <option value="product">By model</option>
@@ -136,14 +136,14 @@ export default function AllocationsPage() {
                     value={allocForm.pincode}
                     maxLength={6}
                     onChange={(e) => setAllocForm({ ...allocForm, pincode: e.target.value.trim() })}
-                    className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5"
+                    className="input flex-1"
                     required
                   />
                 ) : (
                   <select
                     value={allocForm.productId}
                     onChange={(e) => setAllocForm({ ...allocForm, productId: e.target.value })}
-                    className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5"
+                    className="input flex-1"
                     required
                   >
                     <option value="">Select model…</option>
@@ -155,7 +155,7 @@ export default function AllocationsPage() {
                   </select>
                 )}
               </div>
-              <button className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700">
+              <button className="btn btn-primary btn-sm">
                 Allocate
               </button>
             </form>
@@ -176,7 +176,7 @@ export default function AllocationsPage() {
                 {isAdmin && (
                   <button
                     onClick={() => remove(`/allocations/${a.id}`)}
-                    className="text-xs text-rose-600 hover:underline"
+                    className="text-xs text-rose-600 hover:text-rose-700"
                   >
                     Remove
                   </button>
@@ -189,7 +189,7 @@ export default function AllocationsPage() {
           </ul>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="card p-5">
           <h2 className="font-semibold">Technician sets → Backend staff</h2>
 
           {isAdmin && (
@@ -197,7 +197,7 @@ export default function AllocationsPage() {
               <select
                 value={mapForm.backendId}
                 onChange={(e) => setMapForm({ ...mapForm, backendId: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 px-2 py-1.5"
+                className="input"
                 required
               >
                 <option value="">Select backend staff…</option>
@@ -210,7 +210,7 @@ export default function AllocationsPage() {
               <select
                 value={mapForm.technicianId}
                 onChange={(e) => setMapForm({ ...mapForm, technicianId: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 px-2 py-1.5"
+                className="input"
                 required
               >
                 <option value="">Select technician…</option>
@@ -220,7 +220,7 @@ export default function AllocationsPage() {
                   </option>
                 ))}
               </select>
-              <button className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700">
+              <button className="btn btn-primary btn-sm">
                 Assign technician
               </button>
             </form>
@@ -237,7 +237,7 @@ export default function AllocationsPage() {
                 {isAdmin && (
                   <button
                     onClick={() => remove(`/allocations/technician-map/${m.id}`)}
-                    className="text-xs text-rose-600 hover:underline"
+                    className="text-xs text-rose-600 hover:text-rose-700"
                   >
                     Remove
                   </button>
