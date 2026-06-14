@@ -3,6 +3,9 @@
 
 generator client {
   provider = "prisma-client-js"
+  // "native" for local dev; the musl/OpenSSL-3 target is needed on the
+  // Alpine (node:*-alpine) runtime image used in Docker/Railway.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
