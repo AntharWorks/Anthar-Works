@@ -27,7 +27,9 @@ backend on Railway. Your Android app talks to the backend directly.
 These third-party approvals take **days to weeks**, so kick them off before anything else:
 
 1. **Razorpay** (takes payments) — sign up at razorpay.com, complete KYC, get **live** keys.
-   *Required: the backend refuses to start in production without them.*
+   *Optional to launch: the app boots without these. Until they're set (and you turn on
+   **Portal → Settings → Online payments**), customers place orders and your staff mark them paid
+   in the portal. Add the keys when you're ready to take online payments.*
 2. **MSG91** (sends SMS/OTP) — sign up, complete **DLT registration** (an Indian telecom
    requirement; this is the slow part, often 1–2 weeks), register your sender ID and OTP template.
 3. **Meta WhatsApp Cloud API** (sends WhatsApp messages) — verify your business, get a phone
@@ -62,8 +64,9 @@ system runs in test mode and just logs messages instead of sending them.
    | `NODE_ENV` | `production` | Just type it |
    | `JWT_ACCESS_SECRET` | a long random string | Run `openssl rand -hex 32`, or use a password generator (40+ chars) |
    | `JWT_REFRESH_SECRET` | a different long random string | Same as above |
-   | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | live keys | Razorpay Dashboard → Account & Settings → API Keys |
-   | `RAZORPAY_WEBHOOK_SECRET` | webhook secret | Created in Step 4 below — come back and fill it in |
+   | `PAYMENTS_ENABLED` | `true` (or `false`) | Default for the payments toggle. Leave `true`; if Razorpay keys are blank the app still runs in offline-order mode. Flip it anytime in Portal → Settings |
+   | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | live keys (optional at first) | Razorpay Dashboard → Account & Settings → API Keys. Leave blank to launch without online payments |
+   | `RAZORPAY_WEBHOOK_SECRET` | webhook secret (optional at first) | Created in Step 4 below — come back and fill it in |
    | `MSG91_AUTH_KEY` / `MSG91_SENDER_ID` / `MSG91_OTP_TEMPLATE_ID` | from MSG91 | MSG91 dashboard after DLT approval |
    | `WHATSAPP_PHONE_NUMBER_ID` / `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_COMPANY_RECIPIENT` | from Meta | Meta Business → WhatsApp → API Setup; recipient = company's WhatsApp number for internal alerts |
    | `FCM_SERVICE_ACCOUNT_JSON` | entire JSON file contents | Firebase Console → Project Settings → Service Accounts → Generate key |

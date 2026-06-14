@@ -10,6 +10,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ───────────────────────── App configuration ─────────────────────────
+
+// Single-row admin-controlled settings (feature flags). Channels and payments
+// can be switched on/off from Portal > Settings. Seeded from the matching env
+// vars (PAYMENTS_ENABLED / WHATSAPP_ENABLED / SMS_ENABLED) on first read.
+model AppConfig {
+  id                    String   @id @default("singleton")
+  onlinePaymentsEnabled Boolean  @default(true)
+  whatsappEnabled       Boolean  @default(true)
+  smsEnabled            Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+
+  @@map("app_config")
+}
+
 // ───────────────────────── Identity & org ─────────────────────────
 
 enum Role {
@@ -477,6 +492,7 @@ enum NotificationStatus {
   SENT
   DELIVERED
   FAILED
+  SUPPRESSED // channel turned off by admin (not sent)
 }
 
 // Auditable delivery log for every FRD notification type.

@@ -42,6 +42,23 @@ export default function OrdersPage() {
     load().catch((e) => setError(e.message));
   }, [load]);
 
+  async function markPaid(order: OrderRow) {
+    const ref = window.prompt(
+      `Record an offline payment for ${order.orderNo}.\nOptional reference (e.g. cash, UPI ref):`,
+    );
+    if (ref === null) return; // cancelled
+    setError(null);
+    try {
+      await api(`/orders/${order.id}/mark-paid`, {
+        method: 'PATCH',
+        body: { method: ref || undefined, reference: ref || undefined },
+      });
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
   async function markDelivered(order: OrderRow) {
     const date = window.prompt(
       'Delivery date (YYYY-MM-DD) — the customer is notified on WhatsApp & SMS:',
@@ -129,6 +146,14 @@ export default function OrdersPage() {
                   {formatDateTime(o.createdAt)}
                 </td>
                 <td className="px-4 py-3">
+                  {o.status === 'CREATED' && (
+                    <button
+                      onClick={() => markPaid(o)}
+                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                    >
+                      Mark paid
+                    </button>
+                  )}
                   {o.status === 'PAID' && o.type === 'PRODUCT' && (
                     <button
                       onClick={() => markDelivered(o)}

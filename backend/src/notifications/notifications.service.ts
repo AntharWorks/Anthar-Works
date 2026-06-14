@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NotificationChannel, NotificationStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { SettingsService } from '../settings/settings.service';
 import { SmsProvider } from './sms.provider';
 import { WhatsappProvider } from './whatsapp.provider';
 
@@ -24,10 +25,14 @@ type SendInput = {
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
+  // Login OTP must always be deliverable, even when the SMS channel is off.
+  private static readonly ALWAYS_ALLOWED_TEMPLATES = new Set(['APP_LOGIN_OTP']);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly sms: SmsProvider,
     private readonly whatsapp: WhatsappProvider,
+    private readonly settings: SettingsService,
   ) {}
 
   async send(input: SendInput): Promise<void> {
@@ -66,7 +71,36 @@ export class NotificationsService {
     });
   }
 
+  // Admin channel toggle: when a channel is off we record the message as
+  // SUPPRESSED instead of sending it. Login OTP is always exempt so sign-in
+  // keeps working.
+  private async isChannelEnabled(input: SendInput): Promise<boolean> {
+    if (NotificationsService.ALWAYS_ALLOWED_TEMPLATES.has(input.template)) {
+      return true;
+    }
+    const settings = await this.settings.getSettings();
+    if (input.channel === NotificationChannel.WHATSAPP) {
+      return settings.whatsappEnabled;
+    }
+    if (input.channel === NotificationChannel.SMS) {
+      return settings.smsEnabled;
+    }
+    return true;
+  }
+
   private async dispatch(logId: string, input: SendInput): Promise<void> {
+    if (!(await this.isChannelEnabled(input))) {
+      this.logger.log(
+        `[SUPPRESSED ${input.channel}] ${input.template} → ${input.recipient} (channel disabled by admin)`,
+      );
+      await this.prisma.notificationLog
+        .update({
+          where: { id: logId },
+          data: { status: NotificationStatus.SUPPRESSED },
+        })
+        .catch(() => undefined);
+      return;
+    }
     try {
       const providerMessageId =
         input.channel === NotificationChannel.WHATSAPP

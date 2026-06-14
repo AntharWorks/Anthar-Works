@@ -15,7 +15,8 @@ type RenewalOrder = {
   orderId: string;
   orderNo: string;
   amountInr: number;
-  razorpay: { razorpayOrderId: string; keyId: string | null; testMode: boolean };
+  mode: 'online' | 'offline';
+  razorpay?: { razorpayOrderId: string; keyId: string };
 };
 
 declare global {
@@ -31,8 +32,8 @@ export default function RenewPage() {
   const [devOtp, setDevOtp] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [subs, setSubs] = useState<Subscription[]>([]);
-  const [pending, setPending] = useState<RenewalOrder | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [placed, setPlaced] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -104,13 +105,13 @@ export default function RenewPage() {
   }
 
   async function confirm(order: RenewalOrder, payment: { id: string; signature: string }) {
+    if (!order.razorpay) return;
     await call(`/checkout/${order.orderId}/confirm`, {
       razorpayOrderId: order.razorpay.razorpayOrderId,
       razorpayPaymentId: payment.id,
       razorpaySignature: payment.signature,
     });
     setDone(order.orderNo);
-    setPending(null);
     if (token) await loadSubs(token);
   }
 
@@ -118,6 +119,7 @@ export default function RenewPage() {
     setBusy(true);
     setError(null);
     setDone(null);
+    setPlaced(null);
     try {
       const res = await fetch(`/api/v1/me/subscriptions/${sub.id}/renew`, {
         method: 'POST',
@@ -126,8 +128,9 @@ export default function RenewPage() {
       const order: RenewalOrder & { message?: string } = await res.json();
       if (!res.ok) throw new Error(order.message ?? 'Could not start renewal');
 
-      if (order.razorpay.testMode) {
-        setPending(order);
+      // Offline mode: record the renewal request; staff collect payment.
+      if (order.mode === 'offline' || !order.razorpay) {
+        setPlaced(order.orderNo);
         return;
       }
       if (!window.Razorpay) throw new Error('Payment library failed to load');
@@ -214,6 +217,12 @@ export default function RenewPage() {
               ✅ Renewal confirmed — order <span className="font-mono">{done}</span>
             </p>
           )}
+          {placed && (
+            <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
+              📝 Renewal requested — order <span className="font-mono">{placed}</span>.
+              Our team will contact you to collect payment.
+            </p>
+          )}
           {subs.map((s) => (
             <div
               key={s.id}
@@ -241,26 +250,6 @@ export default function RenewPage() {
           {subs.length === 0 && (
             <p className="text-slate-400">No subscriptions found for this number.</p>
           )}
-        </div>
-      )}
-
-      {pending && (
-        <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
-          <p className="text-sm font-semibold text-amber-800">Test mode</p>
-          <p className="mt-1 text-sm text-amber-700">
-            Order <span className="font-mono">{pending.orderNo}</span> (₹
-            {pending.amountInr.toLocaleString('en-IN')}) created in simulated mode.
-          </p>
-          <button
-            onClick={() =>
-              confirm(pending, { id: `pay_dev_${Date.now()}`, signature: 'dev' }).catch((err) =>
-                setError(err.message),
-              )
-            }
-            className="mt-2 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700"
-          >
-            Simulate successful payment
-          </button>
         </div>
       )}
 

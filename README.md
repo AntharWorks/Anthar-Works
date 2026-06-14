@@ -253,11 +253,19 @@ for the full list with comments. Grouped:
 | Push | `FCM_SERVICE_ACCOUNT_JSON` |
 | Object storage | `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` |
 | Content | `FAQ_VIDEO_URL` |
+| Feature-flag defaults | `PAYMENTS_ENABLED`, `WHATSAPP_ENABLED`, `SMS_ENABLED` |
+
+**Admin feature toggles.** Online payments, WhatsApp, and SMS each have an on/off switch in
+**Portal → Settings** (ADMIN only), backed by the `AppConfig` table. The `*_ENABLED` env vars only
+set the initial default; admins flip them live afterwards. When a channel is off, matching messages
+are recorded in `notifications_log` as `SUPPRESSED` instead of sent — except **login OTP, which
+always sends over SMS** so sign-in keeps working.
 
 Without provider keys the system still runs: messages are logged to the console and
-`notifications_log` instead of being sent (dev/test mode). Razorpay keys are **required** in
-production — the API refuses to start without them. The web app needs only `API_URL` (the backend's
-public URL).
+`notifications_log` instead of being sent (dev/test mode). Razorpay keys are **optional to boot**:
+without them (or with the payments toggle off) the storefront takes orders offline and staff mark
+them paid — add the keys and flip the toggle on to accept online payments. The web app needs only
+`API_URL` (the backend's public URL).
 
 ## Deployment
 

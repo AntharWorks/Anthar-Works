@@ -4,7 +4,6 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   BillingPeriod,
   OrderStatus,
@@ -16,6 +15,7 @@ import {
 } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SettingsService } from '../settings/settings.service';
 import { TicketsService } from '../tickets/tickets.service';
 import { verifyPaymentSignature } from './razorpay-signature';
 import { RazorpayService } from './razorpay.service';
@@ -32,7 +32,7 @@ export class CheckoutService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly razorpay: RazorpayService,
-    private readonly config: ConfigService,
+    private readonly settings: SettingsService,
     private readonly notifications: NotificationsService,
     private readonly tickets: TicketsService,
   ) {}
@@ -137,8 +137,15 @@ export class CheckoutService {
     subscriptionId?: string;
     items?: { productId: string; qty: number; priceInr: Prisma.Decimal }[];
   }) {
+    const { onlinePaymentsEnabled } = await this.settings.getSettings();
+    const paymentsLive = onlinePaymentsEnabled && this.razorpay.isConfigured;
     const orderNo = await this.nextOrderNo();
-    const gateway = await this.razorpay.createOrder(input.amountInr, orderNo);
+
+    // Live: open a Razorpay order. Offline: no gateway — the order is taken now
+    // and staff mark it paid later (cash/UPI on delivery).
+    const gateway = paymentsLive
+      ? await this.razorpay.createOrder(input.amountInr, orderNo)
+      : null;
 
     const order = await this.prisma.order.create({
       data: {
@@ -146,7 +153,7 @@ export class CheckoutService {
         customerId: input.customerId,
         type: input.type,
         amountInr: new Prisma.Decimal(input.amountInr),
-        razorpayOrderId: gateway.razorpayOrderId,
+        razorpayOrderId: gateway?.razorpayOrderId ?? null,
         subscriptionId: input.subscriptionId,
         ...(input.items ? { items: { create: input.items } } : {}),
         payments: {
@@ -155,12 +162,29 @@ export class CheckoutService {
       },
     });
 
+    if (!paymentsLive) {
+      const amount = `₹${Number(input.amountInr).toLocaleString('en-IN')}`;
+      await this.notifications.notifyCompany(
+        'NEW_ORDER_ALERT',
+        `New offline ${input.type} order ${orderNo} — ${amount} (${input.customerNo}) awaiting payment. Collect payment and mark it paid in the portal.`,
+        [orderNo, amount, input.customerNo],
+      );
+    }
+
     return {
       orderId: order.id,
       orderNo: order.orderNo,
       amountInr: input.amountInr,
       customerNo: input.customerNo,
-      razorpay: gateway,
+      mode: paymentsLive ? ('online' as const) : ('offline' as const),
+      ...(gateway
+        ? {
+            razorpay: {
+              razorpayOrderId: gateway.razorpayOrderId,
+              keyId: gateway.keyId,
+            },
+          }
+        : {}),
     };
   }
 
@@ -183,27 +207,46 @@ export class CheckoutService {
       return { orderNo: order.orderNo, status: order.status };
     }
 
-    const isDevOrder = input.razorpayOrderId.startsWith('order_dev_');
-    const devBypass =
-      isDevOrder &&
-      !this.razorpay.isConfigured &&
-      this.config.get('NODE_ENV') !== 'production';
-
-    if (!devBypass) {
-      const valid = verifyPaymentSignature({
-        razorpayOrderId: input.razorpayOrderId,
-        razorpayPaymentId: input.razorpayPaymentId,
-        signature: input.razorpaySignature,
-        keySecret: this.razorpay.keySecret,
-      });
-      if (!valid) {
-        throw new UnauthorizedException('Invalid payment signature');
-      }
+    const valid = verifyPaymentSignature({
+      razorpayOrderId: input.razorpayOrderId,
+      razorpayPaymentId: input.razorpayPaymentId,
+      signature: input.razorpaySignature,
+      keySecret: this.razorpay.keySecret,
+    });
+    if (!valid) {
+      throw new UnauthorizedException('Invalid payment signature');
     }
 
     const updated = await this.applyPaymentSuccess(order.id, {
       razorpayPaymentId: input.razorpayPaymentId,
       signature: input.razorpaySignature,
+    });
+    return { orderNo: updated.orderNo, status: updated.status };
+  }
+
+  // Staff records an offline payment (cash/UPI). Runs the same success path as
+  // a Razorpay payment: marks PAID, extends renewals, creates the installation
+  // ticket, and fires customer + company notifications.
+  async markPaidManually(
+    orderId: string,
+    ref: { method?: string; reference?: string; actorId: string },
+  ) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (order.status === OrderStatus.PAID) {
+      return { orderNo: order.orderNo, status: order.status };
+    }
+    const updated = await this.applyPaymentSuccess(order.id, {
+      signature: 'manual',
+      webhookPayload: {
+        manual: true,
+        method: ref.method ?? null,
+        reference: ref.reference ?? null,
+        byUserId: ref.actorId,
+        at: new Date().toISOString(),
+      },
     });
     return { orderNo: updated.orderNo, status: updated.status };
   }

@@ -6,16 +6,25 @@ import {
   Param,
   Patch,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { OrderStatus, OrderType, Role } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsDate, IsEnum, IsInt, IsOptional, Min } from 'class-validator';
+import {
+  IsDate,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { CheckoutService } from './checkout.service';
 
 class ListOrdersDto {
   @IsOptional()
@@ -39,6 +48,16 @@ class DeliverDto {
   deliveryDate: Date;
 }
 
+class MarkPaidDto {
+  @IsOptional()
+  @IsString()
+  method?: string;
+
+  @IsOptional()
+  @IsString()
+  reference?: string;
+}
+
 @Controller('orders')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN, Role.BACKEND)
@@ -46,6 +65,7 @@ export class OrdersController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly checkout: CheckoutService,
   ) {}
 
   @Get()
@@ -70,6 +90,20 @@ export class OrdersController {
       this.prisma.order.count({ where }),
     ]);
     return { items, total, page, pageSize: take };
+  }
+
+  // Staff records an offline payment (cash/UPI) when online payments are off.
+  @Patch(':id/mark-paid')
+  markPaid(
+    @Param('id') id: string,
+    @Body() dto: MarkPaidDto,
+    @Req() req: any,
+  ) {
+    return this.checkout.markPaidManually(id, {
+      method: dto.method,
+      reference: dto.reference,
+      actorId: req.user.sub,
+    });
   }
 
   // FRD: "Product Delivery update with Date" + prompt to pick an
