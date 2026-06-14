@@ -18,9 +18,11 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY package.json ./
 
-# Job photos land here unless S3 is configured; mount a volume in compose.
+# Job photos land here unless S3 is configured. For persistence across
+# redeploys, attach storage at this path (a Railway Volume, or a compose
+# volume locally). Note: a Dockerfile VOLUME instruction is intentionally
+# omitted — Railway's builder rejects it.
 ENV UPLOAD_DIR=/data/uploads
-VOLUME /data/uploads
 
 EXPOSE 3001
 # Apply pending migrations, then start the API.
